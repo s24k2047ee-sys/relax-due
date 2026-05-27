@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RelaxDue | 課題を終わらせて、気持ちよくくつろごう</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="logo-section">
+        <h1><span class="gradient-text">RelaxDue</span></h1>
+        <p>課題を終わらせて、罪悪感ゼロの自由時間を最大化しよう</p>
+      </div>
+      
+      <div class="relax-scoreboard">
+        <!-- Stocked Relax Time -->
+        <div class="score-card glass-card">
+          <span class="score-label">獲得したくつろぎ時間</span>
+          <div class="score-value"><span class="gradient-text-relax" id="total-relax-time">0</span><span style="font-size: 1rem; color: var(--color-text-secondary); margin-left: 4px;">時間</span></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Dashboard Main -->
+    <div class="dashboard-grid">
+      
+      <!-- Left Column: Add Task Form -->
+      <section class="form-section">
+        <div class="form-card glass-card">
+          <h2>📝 新しい課題を登録</h2>
+          <form id="add-task-form">
+            <!-- Task Title -->
+            <div class="form-group">
+              <label for="task-title">課題名</label>
+              <input type="text" id="task-title" class="form-control" placeholder="例: Web3・AI概論 第3回宿題" required autocomplete="off">
+            </div>
+
+            <!-- Subject -->
+            <div class="form-group">
+              <label for="task-subject">科目名 / タグ</label>
+              <input type="text" id="task-subject" class="form-control" placeholder="例: Web3・AI概論" required autocomplete="off">
+            </div>
+
+            <!-- Deadline Datetime -->
+            <div class="form-group">
+              <label for="task-deadline">提出期限 (デッドライン)</label>
+              <input type="datetime-local" id="task-deadline" class="form-control" required>
+            </div>
+
+            <!-- Estimated Relax Hours (Reward) -->
+            <div class="form-group">
+              <label for="task-relax-hours">完了後のご褒美くつろぎ時間 (時間)</label>
+              <input type="number" id="task-relax-hours" class="form-control" value="4" min="1" max="48" required>
+              <small style="font-size: 0.75rem; color: var(--color-text-muted); display: block; margin-top: 0.25rem;">
+                ※課題を終えた後に「心置きなく遊べる」と想定する時間。
+              </small>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" class="btn-primary">課題を追加する</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- Right Column: Task List -->
+      <section class="list-section">
+        <div class="list-card glass-card">
+          <div class="list-header">
+            <h2>⏳ 提出期限が迫っている課題</h2>
+            <span class="task-count" id="active-task-count">0</span>
+          </div>
+
+          <!-- Dynamic Task List -->
+          <div class="task-list" id="task-list-container">
+            <!-- Empty State (Placeholder) -->
+            <div class="empty-state" id="empty-state">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+              </svg>
+              <p style="font-weight: 500; font-size: 1.1rem; color: var(--color-text-primary);">現在、迫っている課題はありません！</p>
+              <p style="font-size: 0.9rem; margin-top: 0.25rem;">素晴らしいですね。心置きなく、最高のくつろぎ時間を楽しんでください！</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- Confetti Library -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- Main Application Script -->
+  <script src="app.js"></script>
+</body>
+</html>
