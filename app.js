@@ -2,6 +2,13 @@
 let tasks = [];
 let totalRelaxHours = 0;
 
+// Added in v2: Timer State
+let timerInterval = null;
+let timerActive = false;
+let timerEndTime = 0;
+let timerTotalSeconds = 0;
+let selectedTimerMinutes = 0;
+
 // DOM Elements
 const taskForm = document.getElementById('add-task-form');
 const taskTitleInput = document.getElementById('task-title');
@@ -12,6 +19,11 @@ const taskListContainer = document.getElementById('task-list-container');
 const emptyState = document.getElementById('empty-state');
 const activeTaskCountElement = document.getElementById('active-task-count');
 const totalRelaxTimeElement = document.getElementById('total-relax-time');
+
+// Added in v2: Timer DOM Elements
+const timerCountdown = document.getElementById('timer-countdown');
+const timerPresetButtons = document.querySelectorAll('.btn-preset');
+const timerToggleBtn = document.getElementById('btn-timer-toggle');
 
 // Default estimated hours multiplier / task helper
 const DEFAULT_ESTIMATED_RELAX_HOURS = 4;
@@ -26,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     tasks = JSON.parse(storedTasks);
   }
   if (storedRelaxHours) {
-    totalRelaxHours = parseInt(storedRelaxHours, 10);
+    totalRelaxHours = parseFloat(storedRelaxHours);
   }
 
   // Set default deadline to tomorrow same time
@@ -38,6 +50,35 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initial UI Render
   updateScoreboard();
   renderTasks();
+
+  // Added in v2: Restore Timer State
+  const storedTimerActive = localStorage.getItem('relaxdue_timer_active');
+  const storedTimerEndTime = localStorage.getItem('relaxdue_timer_end_time');
+  const storedTimerTotalSeconds = localStorage.getItem('relaxdue_timer_total_seconds');
+
+  if (storedTimerActive === 'true' && storedTimerEndTime) {
+    const endTime = parseInt(storedTimerEndTime, 10);
+    const now = Date.now();
+    if (endTime > now) {
+      timerActive = true;
+      timerEndTime = endTime;
+      timerTotalSeconds = parseInt(storedTimerTotalSeconds, 10) || 0;
+      document.body.classList.add('relax-mode-active');
+      timerToggleBtn.textContent = 'くつろぎをやめる';
+      timerToggleBtn.className = 'btn-timer btn-timer-stop';
+      timerToggleBtn.disabled = false;
+      disablePresets(true);
+      startTimerInterval();
+    } else {
+      clearTimerState();
+    }
+  } else {
+    // Show total relax hours and check toggle validation
+    validateTimerLaunch();
+  }
+
+  // Added in v2: Setup Timer Events
+  initTimerEventListeners();
 
   // Start real-time countdown timer (every 1 second)
   setInterval(updateAllCountdowns, 1000);
@@ -93,7 +134,12 @@ function saveRelaxHours() {
 
 // Update Scoreboard UI
 function updateScoreboard() {
-  totalRelaxTimeElement.textContent = totalRelaxHours;
+  // Round to 2 decimal places to handle fractions of hours (e.g. 0.5 hours for 30 mins)
+  totalRelaxTimeElement.textContent = Math.round(totalRelaxHours * 100) / 100;
+  // Added in v2: Update timer validation when scoreboard changes
+  if (!timerActive) {
+    validateTimerLaunch();
+  }
 }
 
 // Format Time Remaining and calculate percentage
@@ -432,4 +478,257 @@ function escapeHTML(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+/* ==========================================
+   Relax Timer Features (Added in v2)
+   ========================================== */
+
+function initTimerEventListeners() {
+  // Preset Buttons Click Handler
+  timerPresetButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      if (timerActive) return;
+
+      // Remove active class from all
+      timerPresetButtons.forEach(btn => btn.classList.remove('active'));
+
+      // Add active to current
+      button.classList.add('active');
+
+      // Set selected minutes
+      selectedTimerMinutes = parseInt(button.dataset.minutes, 10);
+      
+      // Update countdown display
+      const totalSeconds = selectedTimerMinutes * 60;
+      timerCountdown.textContent = formatTime(totalSeconds);
+      
+      // Validate launch button
+      validateTimerLaunch();
+    });
+  });
+
+  // Start / Stop Toggle Button
+  timerToggleBtn.addEventListener('click', () => {
+    if (timerActive) {
+      // Stop the timer manually (no alarm, no penalty return)
+      stopTimer(false);
+    } else {
+      // Start the timer
+      startTimer();
+    }
+  });
+}
+
+function validateTimerLaunch() {
+  if (timerActive) return;
+
+  const currentAvailableHours = totalRelaxHours;
+  let hasValidPreset = false;
+
+  timerPresetButtons.forEach(button => {
+    const presetMinutes = parseInt(button.dataset.minutes, 10);
+    const presetHours = presetMinutes / 60;
+
+    if (presetHours <= currentAvailableHours) {
+      button.disabled = false;
+      if (button.classList.contains('active')) {
+        hasValidPreset = true;
+      }
+    } else {
+      button.disabled = true;
+      button.classList.remove('active');
+    }
+  });
+
+  // Check if we still have a selected valid preset
+  if (hasValidPreset && selectedTimerMinutes > 0) {
+    timerToggleBtn.disabled = false;
+  } else {
+    timerToggleBtn.disabled = true;
+    // Reset timer countdown display if no active selection
+    timerCountdown.textContent = '00:00:00';
+    selectedTimerMinutes = 0;
+  }
+}
+
+function disablePresets(disabled) {
+  timerPresetButtons.forEach(button => {
+    button.disabled = disabled;
+  });
+}
+
+function startTimer() {
+  if (selectedTimerMinutes <= 0) return;
+  const costHours = selectedTimerMinutes / 60;
+
+  if (totalRelaxHours < costHours) {
+    alert('くつろぎ時間が不足しています！');
+    return;
+  }
+
+  // 1. Spend hours
+  totalRelaxHours -= costHours;
+  saveRelaxHours();
+  updateScoreboard();
+
+  // 2. Set Timer State
+  timerActive = true;
+  timerTotalSeconds = selectedTimerMinutes * 60;
+  timerEndTime = Date.now() + (timerTotalSeconds * 1000);
+
+  // 3. Save Timer to LocalStorage
+  localStorage.setItem('relaxdue_timer_active', 'true');
+  localStorage.setItem('relaxdue_timer_end_time', timerEndTime.toString());
+  localStorage.setItem('relaxdue_timer_total_seconds', timerTotalSeconds.toString());
+
+  // 4. Update UI
+  document.body.classList.add('relax-mode-active');
+  timerToggleBtn.textContent = 'くつろぎをやめる';
+  timerToggleBtn.className = 'btn-timer btn-timer-stop';
+  disablePresets(true);
+
+  // 5. Start Interval
+  startTimerInterval();
+}
+
+function startTimerInterval() {
+  if (timerInterval) clearInterval(timerInterval);
+
+  updateTimerCountdown(); // Initial call
+  timerInterval = setInterval(updateTimerCountdown, 1000);
+}
+
+function updateTimerCountdown() {
+  const now = Date.now();
+  const remainingMs = timerEndTime - now;
+
+  if (remainingMs <= 0) {
+    // Timer finished successfully!
+    stopTimer(true);
+    return;
+  }
+
+  const remainingSeconds = Math.ceil(remainingMs / 1000);
+  timerCountdown.textContent = formatTime(remainingSeconds);
+}
+
+function stopTimer(completedSuccessfully = false) {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+
+  // Reset UI State
+  document.body.classList.remove('relax-mode-active');
+  timerToggleBtn.textContent = 'タイマー開始';
+  timerToggleBtn.className = 'btn-timer btn-timer-start';
+  timerCountdown.textContent = '00:00:00';
+  
+  // Remove active styling on preset buttons
+  timerPresetButtons.forEach(btn => btn.classList.remove('active'));
+
+  timerActive = false;
+  selectedTimerMinutes = 0;
+
+  // Clear LocalStorage Timer data
+  clearTimerState();
+
+  if (completedSuccessfully) {
+    // Celebrate successful relaxation
+    playTimerEndChime();
+    showRelaxCompletedOverlay();
+  }
+
+  // Refresh launch availability
+  validateTimerLaunch();
+}
+
+function clearTimerState() {
+  localStorage.removeItem('relaxdue_timer_active');
+  localStorage.removeItem('relaxdue_timer_end_time');
+  localStorage.removeItem('relaxdue_timer_total_seconds');
+}
+
+function formatTime(totalSeconds) {
+  const hrs = Math.floor(totalSeconds / 3600);
+  const mins = Math.floor((totalSeconds % 3600) / 60);
+  const secs = totalSeconds % 60;
+
+  return [
+    hrs.toString().padStart(2, '0'),
+    mins.toString().padStart(2, '0'),
+    secs.toString().padStart(2, '0')
+  ].join(':');
+}
+
+// Synthesis of soft chime indicating time to wrap up resting
+function playTimerEndChime() {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const now = audioCtx.currentTime;
+
+    const playTone = (freq, time, duration, vol) => {
+      const osc = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, time);
+      
+      gainNode.gain.setValueAtTime(vol, time);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+      osc.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      osc.start(time);
+      osc.stop(time + duration);
+    };
+
+    // Soft alarm arpeggio (C Major Seventh)
+    playTone(261.63, now, 0.6, 0.1);       // C4
+    playTone(329.63, now + 0.15, 0.6, 0.1); // E4
+    playTone(392.00, now + 0.3, 0.6, 0.1);  // G4
+    playTone(493.88, now + 0.45, 1.0, 0.1); // B4
+  } catch (e) {
+    console.warn('Audio Context failed', e);
+  }
+}
+
+// Overlay banner showing relaxing complete info
+function showRelaxCompletedOverlay() {
+  const existingOverlay = document.querySelector('.relax-overlay');
+  if (existingOverlay) existingOverlay.remove();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'relax-banner glass-card relax-overlay';
+  overlay.style.borderColor = '#06b6d4';
+  
+  overlay.innerHTML = `
+    <div class="relax-banner-icon" style="background: rgba(6, 182, 212, 0.2); color: #06b6d4;">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 20px; height: 20px;">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+      </svg>
+    </div>
+    <div class="relax-banner-content">
+      <h3>⚡ リフレッシュ完了！</h3>
+      <p>罪悪感ゼロの極上くつろぎタイムが終了しました。</p>
+      <p style="font-weight: 600; color: #a855f7; margin-top: 0.25rem;">さあ、次の課題もサクッと終わらせましょう！</p>
+    </div>
+    <button class="btn-close-banner" onclick="this.parentElement.remove()">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" style="width: 16px; height: 16px;">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  `;
+
+  document.body.appendChild(overlay);
+
+  // Auto-remove overlay after 8 seconds
+  setTimeout(() => {
+    if (overlay && overlay.parentElement) {
+      overlay.classList.add('fade-out');
+      setTimeout(() => overlay.remove(), 300);
+    }
+  }, 8000);
 }

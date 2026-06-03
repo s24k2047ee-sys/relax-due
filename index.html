@@ -27,7 +27,7 @@
     <!-- Dashboard Main -->
     <div class="dashboard-grid">
       
-      <!-- Left Column: Add Task Form -->
+      <!-- Left Column: Add Task Form & Relax Timer -->
       <section class="form-section">
         <div class="form-card glass-card">
           <h2>📝 新しい課題を登録</h2>
@@ -62,6 +62,30 @@
             <!-- Submit Button -->
             <button type="submit" class="btn-primary">課題を追加する</button>
           </form>
+        </div>
+
+        <!-- Relax Timer Panel (Added in v2) -->
+        <div class="timer-card glass-card" id="relax-timer-panel">
+          <h2>🛋️ 罪悪感ゼロタイマー</h2>
+          <p style="font-size: 0.9rem; color: var(--color-text-secondary); margin-bottom: 1rem;">
+            貯まった時間を使って、全力で休みましょう！
+          </p>
+          
+          <!-- Countdown Display -->
+          <div class="timer-display" id="timer-countdown">00:00:00</div>
+          
+          <!-- Preset Buttons -->
+          <div class="timer-preset-container">
+            <button type="button" class="btn-preset" data-minutes="15">15分</button>
+            <button type="button" class="btn-preset" data-minutes="30">30分</button>
+            <button type="button" class="btn-preset" data-minutes="60">1時間</button>
+            <button type="button" class="btn-preset" data-minutes="120">2時間</button>
+          </div>
+          
+          <!-- Control Buttons -->
+          <div class="timer-controls">
+            <button type="button" class="btn-timer btn-timer-start" id="btn-timer-toggle" disabled>タイマー開始</button>
+          </div>
         </div>
       </section>
 
