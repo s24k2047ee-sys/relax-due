@@ -710,3 +710,140 @@ body.relax-mode-active {
   100% { transform: scale(1); }
 }
 
+/* ==========================================
+   AI Subtask Features (Added in v3)
+   ========================================== */
+
+.form-checkbox-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.form-checkbox-container input {
+  cursor: pointer;
+  accent-color: #a855f7;
+}
+
+/* AI Badge */
+.ai-badge {
+  background: var(--gradient-brand);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.4rem;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  box-shadow: 0 0 8px rgba(168, 85, 247, 0.4);
+}
+
+/* Nested Subtask List */
+.subtask-list {
+  margin-top: 0.75rem;
+  padding-left: 1.5rem;
+  border-left: 1px dotted rgba(255, 255, 255, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  animation: slideIn 0.3s ease-out forwards;
+}
+
+.subtask-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0.5rem;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  transition: var(--transition-smooth);
+}
+
+.subtask-item:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.subtask-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+  width: 100%;
+}
+
+.subtask-label input {
+  cursor: pointer;
+  accent-color: #10b981;
+}
+
+.subtask-text {
+  color: var(--color-text-secondary);
+  transition: var(--transition-smooth);
+}
+
+.subtask-label input:checked ~ .subtask-text {
+  text-decoration: line-through;
+  color: var(--color-text-muted);
+}
+
+.subtask-reward {
+  font-size: 0.75rem;
+  color: #06b6d4;
+  font-weight: 600;
+  white-space: nowrap;
+  margin-left: 0.5rem;
+}
+
+/* AI Thinking Loader (during task addition) */
+.ai-thinking-card {
+  padding: 1.5rem;
+  text-align: center;
+  background: rgba(168, 85, 247, 0.03);
+  border: 1px dashed rgba(168, 85, 247, 0.3) !important;
+  animation: aiPulse 2s infinite alternate;
+}
+
+@keyframes aiPulse {
+  0% { border-color: rgba(168, 85, 247, 0.2); box-shadow: 0 0 10px rgba(168, 85, 247, 0.05); }
+  100% { border-color: rgba(168, 85, 247, 0.5); box-shadow: 0 0 20px rgba(168, 85, 247, 0.15); }
+}
+
+.ai-thinking-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #a855f7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 0.5rem;
+}
+
+.ai-thinking-steps {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  font-family: 'Inter', monospace;
+  height: 1.2rem;
+  overflow: hidden;
+}
+
+.sparkle-icon {
+  animation: spin 3s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+

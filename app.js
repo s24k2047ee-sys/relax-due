@@ -25,6 +25,9 @@ const timerCountdown = document.getElementById('timer-countdown');
 const timerPresetButtons = document.querySelectorAll('.btn-preset');
 const timerToggleBtn = document.getElementById('btn-timer-toggle');
 
+// Added in v3: AI Checkbox DOM
+const taskAiSplitInput = document.getElementById('task-ai-split');
+
 // Default estimated hours multiplier / task helper
 const DEFAULT_ESTIMATED_RELAX_HOURS = 4;
 
@@ -85,15 +88,33 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Event Listeners
-taskForm.addEventListener('submit', (e) => {
+taskForm.addEventListener('submit', async (e) => {
   e.preventDefault();
 
   const title = taskTitleInput.value.trim();
   const subject = taskSubjectInput.value.trim();
   const deadlineStr = taskDeadlineInput.value;
-  const relaxHours = parseInt(taskRelaxHoursInput.value, 10) || DEFAULT_ESTIMATED_RELAX_HOURS;
+  const relaxHours = parseFloat(taskRelaxHoursInput.value) || DEFAULT_ESTIMATED_RELAX_HOURS;
+  const useAiSplit = taskAiSplitInput.checked;
 
   if (!title || !subject || !deadlineStr) return;
+
+  // Disable submit button during processing
+  const submitBtn = taskForm.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+
+  let subtasks = [];
+
+  if (useAiSplit) {
+    // Show AI Thinking loader in the task list
+    showAiThinkingLoader(title);
+    
+    // Simulate AI thinking delay (1.8 seconds)
+    await new Promise(resolve => setTimeout(resolve, 1800));
+    
+    // Generate subtasks using the rule-based AI engine
+    subtasks = generateAiSubtasks(title, subject, relaxHours);
+  }
 
   const newTask = {
     id: Date.now().toString(),
@@ -101,7 +122,9 @@ taskForm.addEventListener('submit', (e) => {
     subject,
     deadline: new Date(deadlineStr).toISOString(),
     estimatedHours: relaxHours,
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    subtasks: subtasks, // Added in v3
+    isAiSplit: useAiSplit // Added in v3
   };
 
   tasks.push(newTask);
@@ -111,6 +134,8 @@ taskForm.addEventListener('submit', (e) => {
   // Reset form except defaults
   taskTitleInput.value = '';
   taskSubjectInput.value = '';
+  taskAiSplitInput.checked = true;
+  submitBtn.disabled = false;
   
   // Set next default time
   const tomorrow = new Date();
@@ -239,6 +264,27 @@ function renderTasks() {
       minute: '2-digit'
     });
 
+    const hasSubtasks = task.subtasks && task.subtasks.length > 0;
+    const allSubtasksCompleted = hasSubtasks && task.subtasks.every(st => st.completed);
+
+    // Generate Subtasks HTML if any
+    let subtasksHTML = '';
+    if (hasSubtasks) {
+      subtasksHTML = `<div class="subtask-list">`;
+      task.subtasks.forEach(subtask => {
+        subtasksHTML += `
+          <div class="subtask-item" id="subtask-${task.id}-${subtask.id}">
+            <label class="subtask-label">
+              <input type="checkbox" ${subtask.completed ? 'checked' : ''} onchange="toggleSubtask('${task.id}', '${subtask.id}')">
+              <span class="subtask-text">${escapeHTML(subtask.text)}</span>
+            </label>
+            <span class="subtask-reward">🎁 ＋${Math.round(subtask.rewardHours * 100) / 100}時間</span>
+          </div>
+        `;
+      });
+      subtasksHTML += `</div>`;
+    }
+
     const taskElement = document.createElement('div');
     taskElement.className = 'task-item';
     taskElement.id = `task-${task.id}`;
@@ -249,11 +295,12 @@ function renderTasks() {
       <div class="task-item-main">
         <div class="task-item-left">
           <label class="checkbox-container">
-            <input type="checkbox" onchange="completeTask('${task.id}')">
+            <input type="checkbox" ${hasSubtasks ? 'disabled' : `onchange="completeTask('${task.id}')"`} ${allSubtasksCompleted ? 'checked' : ''}>
             <span class="checkmark"></span>
             <div class="task-content">
               <span class="task-title">${escapeHTML(task.title)}</span>
               <div class="task-meta">
+                ${task.isAiSplit ? '<span class="ai-badge">✨ AI分解</span>' : ''}
                 <span class="task-tag">${escapeHTML(task.subject)}</span>
                 <span class="task-estimated">🎁 ＋${task.estimatedHours}時間くつろぎ</span>
                 <span>📅 締切: ${deadlineFormatted}</span>
@@ -278,6 +325,9 @@ function renderTasks() {
           <div class="gauge-bar ${progress.bgClass}" style="width: ${progress.percentage}%"></div>
         </div>
       </div>
+
+      <!-- Nested Subtasks Container (v3) -->
+      ${subtasksHTML}
     `;
 
     taskListContainer.appendChild(taskElement);
@@ -322,7 +372,10 @@ window.completeTask = function(taskId) {
   if (taskIndex === -1) return;
 
   const completedTask = tasks[taskIndex];
-  const rewardHours = completedTask.estimatedHours;
+  const isAiSplit = completedTask.subtasks && completedTask.subtasks.length > 0;
+  
+  // If it has subtasks, it was already rewarded incrementally.
+  const rewardHours = isAiSplit ? 0 : completedTask.estimatedHours;
 
   // 1. Trigger Confetti celebration
   triggerConfetti();
@@ -331,7 +384,7 @@ window.completeTask = function(taskId) {
   playElegantChime();
 
   // 3. Show Premium Banner Pop-up
-  showRelaxSuccessBanner(completedTask.title, rewardHours);
+  showRelaxSuccessBanner(completedTask.title, completedTask.estimatedHours, isAiSplit);
 
   // 4. Animate task removal from DOM
   const taskElement = document.getElementById(`task-${taskId}`);
@@ -433,7 +486,7 @@ function playElegantChime() {
 }
 
 // Show premium modal/banner when task is completed
-function showRelaxSuccessBanner(taskTitle, rewardHours) {
+function showRelaxSuccessBanner(taskTitle, rewardHours, isAiSplit = false) {
   // Remove existing banner if any
   const existingBanner = document.querySelector('.relax-banner');
   if (existingBanner) existingBanner.remove();
@@ -450,7 +503,9 @@ function showRelaxSuccessBanner(taskTitle, rewardHours) {
     <div class="relax-banner-content">
       <h3>🎉 お疲れ様でした！</h3>
       <p>「${escapeHTML(taskTitle)}」を無事に完了しました！</p>
-      <p style="font-weight: 600; color: #06b6d4; margin-top: 0.25rem;">🎁 罪悪感ゼロのくつろぎ時間 <strong>【＋${rewardHours}時間】</strong> チャージ完了！</p>
+      <p style="font-weight: 600; color: #06b6d4; margin-top: 0.25rem;">
+        ${isAiSplit ? `🎁 全ステップ完了！合計 <strong>【${rewardHours}時間】</strong> のくつろぎ時間を獲得しました！` : `🎁 罪悪感ゼロのくつろぎ時間 <strong>【＋${rewardHours}時間】</strong> チャージ完了！`}
+      </p>
     </div>
     <button class="btn-close-banner" onclick="this.parentElement.remove()">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" style="width: 16px; height: 16px;">
@@ -731,4 +786,200 @@ function showRelaxCompletedOverlay() {
       setTimeout(() => overlay.remove(), 300);
     }
   }, 8000);
+}
+
+/* ==========================================
+   AI Subtask Features (Added in v3)
+   ========================================== */
+
+// Show the AI Loader Card temporarily in the task list
+function showAiThinkingLoader(taskTitle) {
+  // If there's an empty state, hide it
+  emptyState.style.display = 'none';
+
+  const loaderCard = document.createElement('div');
+  loaderCard.className = 'task-item ai-thinking-card';
+  loaderCard.id = 'ai-thinking-loader';
+
+  loaderCard.innerHTML = `
+    <div class="ai-thinking-title">
+      <svg class="sparkle-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 20px; height: 20px; color: #a855f7;">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 21L8.188 15.904L3 15L8.188 14.096L9 9L9.813 14.096L15 15L9.813 15.904Z" />
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19.071 4.929a10 10 0 00-14.142 0M19.071 4.929a10 10 0 010 14.142" />
+      </svg>
+      <span>AI自動分解アシスタント起動中...</span>
+    </div>
+    <div class="ai-thinking-steps" id="ai-thinking-step-text">課題「${escapeHTML(taskTitle)}」を解析しています...</div>
+  `;
+
+  // Prepend to list
+  taskListContainer.insertBefore(loaderCard, taskListContainer.firstChild);
+
+  // Animate AI thinking steps
+  const steps = [
+    '課題の難易度とボリュームを評価しています...',
+    '最適なステップへの細分化（サブタスク化）を設計しています...',
+    'ご褒美くつろぎ時間の均等配分を計算しています...',
+    '完了！まもなく展開します...'
+  ];
+
+  let stepIdx = 0;
+  const stepInterval = setInterval(() => {
+    const textEl = document.getElementById('ai-thinking-step-text');
+    if (textEl && stepIdx < steps.length) {
+      textEl.textContent = steps[stepIdx];
+      stepIdx++;
+    } else {
+      clearInterval(stepInterval);
+    }
+  }, 450);
+}
+
+// AI Subtask Generator Agent
+function generateAiSubtasks(title, subject, totalHours) {
+  const titleLower = title.toLowerCase();
+  
+  let steps = [];
+
+  // Match keywords to produce context-rich subtasks
+  if (titleLower.includes('レポート') || titleLower.includes('作文') || titleLower.includes('論文') || titleLower.includes('文筆')) {
+    steps = [
+      '課題要件と指定文字数を確認し、参考文献・資料を収集する',
+      'レポート全体の構成設計（章立て・目次）を作成する',
+      '導入部と本論（メインとなる主張）を執筆する',
+      '結論を執筆し、全体の誤字脱字チェック・推敲を完了する'
+    ];
+  } else if (titleLower.includes('web3') || titleLower.includes('ai') || titleLower.includes('ブロックチェーン') || titleLower.includes('コントラクト')) {
+    steps = [
+      'Web3・AIに関する基本概念や技術的特徴の背景情報を整理する',
+      '解決したい具体的問題の設定とシステム構成案を設計する',
+      'プロトタイプの作成（モックアップUIまたは基本コードの記述）',
+      '課題のまとめレポート執筆と提出物のパッケージング'
+    ];
+  } else if (titleLower.includes('プログラミング') || titleLower.includes('実装') || titleLower.includes('開発') || titleLower.includes('コード') || titleLower.includes('アプリ')) {
+    steps = [
+      'アプリケーションの機能要件定義と画面設計図の作成',
+      '基本フォルダ構造・設定ファイルの準備と画面UIフレームの構築',
+      'メインロジックおよびコアロジックのコーディング実装',
+      '動作テスト・デバッグによるバグ修正と検証完了'
+    ];
+  } else if (titleLower.includes('数学') || titleLower.includes('計算') || titleLower.includes('解析') || titleLower.includes('物理') || titleLower.includes('演習') || titleLower.includes('課題')) {
+    steps = [
+      '公式や授業ノートから該当分野の基本定理を再学習する',
+      '大問（課題）の前半部分の解答・計算式作成',
+      '大問（課題）の後半部分의解答・計算式作成',
+      '解答全体の検算・最終書き起こしと見直しの完了'
+    ];
+  } else if (titleLower.includes('英語') || titleLower.includes('読書') || titleLower.includes('翻訳') || titleLower.includes('語学') || titleLower.includes('精読')) {
+    steps = [
+      '指定範囲のテキストを辞書を使いながら精読する',
+      '重要イディオムや専門用語の整理・単語リスト作成',
+      '要約文または翻訳ノートのドラフト作成',
+      '全体の日本語表現の推敲および振り返り'
+    ];
+  } else {
+    // Default fallback steps
+    steps = [
+      '課題の達成目標を明確にし、本日の作業計画を立てる',
+      '課題に必要な情報収集・下調べ・資料の整理を行う',
+      '課題のメインとなる作業（執筆や解答作成など）を実行する',
+      '完成したものの最終推敲と、ポータルへの提出準備の完了'
+    ];
+  }
+
+  // Calculate split hours reward (evenly divided)
+  const count = steps.length;
+  const rewardPerSubtask = totalHours / count;
+
+  return steps.map((stepText, idx) => ({
+    id: `st-${Date.now()}-${idx}`,
+    text: stepText,
+    completed: false,
+    rewardHours: rewardPerSubtask
+  }));
+}
+
+// Toggle nested subtask check state
+window.toggleSubtask = function(taskId, subtaskId) {
+  const taskIndex = tasks.findIndex(t => t.id === taskId);
+  if (taskIndex === -1) return;
+
+  const task = tasks[taskIndex];
+  const subtaskIndex = task.subtasks.findIndex(st => st.id === subtaskId);
+  if (subtaskIndex === -1) return;
+
+  const subtask = task.subtasks[subtaskIndex];
+  const originalState = subtask.completed;
+  subtask.completed = !originalState;
+
+  if (subtask.completed) {
+    // 1. Reward user with fractional hours immediately
+    totalRelaxHours += subtask.rewardHours;
+    saveRelaxHours();
+    updateScoreboard();
+
+    // 2. Play mini celebration sound (Web Audio API single high chime)
+    playMiniChime();
+
+    // 3. Mini confetti spark
+    triggerMiniConfetti();
+  } else {
+    // Deduct reward if unchecked (undo action)
+    totalRelaxHours = Math.max(0, totalRelaxHours - subtask.rewardHours);
+    saveRelaxHours();
+    updateScoreboard();
+  }
+
+  // Save changes
+  saveTasks();
+
+  // Check if all subtasks are now completed
+  const allCompleted = task.subtasks.every(st => st.completed);
+  if (allCompleted) {
+    // Wait a brief moment to complete task for smooth animation
+    setTimeout(() => {
+      completeTask(taskId);
+    }, 500);
+  } else {
+    // Re-render to reflect checked visual state
+    renderTasks();
+  }
+};
+
+// Simple retro high chime for small subtask completes
+function playMiniChime() {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const now = audioCtx.currentTime;
+    
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(880, now); // A5 (high note)
+    
+    gainNode.gain.setValueAtTime(0.1, now);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.3);
+  } catch(e) {
+    console.log(e);
+  }
+}
+
+// Sparkly mini confetti for subtasks
+function triggerMiniConfetti() {
+  if (typeof confetti === 'function') {
+    confetti({
+      particleCount: 20,
+      angle: 90,
+      spread: 30,
+      origin: { y: 0.8 },
+      colors: ['#a855f7', '#6366f1', '#06b6d4']
+    });
+  }
 }
