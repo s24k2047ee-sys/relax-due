@@ -9,30 +9,31 @@ let timerEndTime = 0;
 let timerTotalSeconds = 0;
 let selectedTimerMinutes = 0;
 
-// DOM Elements
-const taskForm = document.getElementById('add-task-form');
-const taskTitleInput = document.getElementById('task-title');
-const taskSubjectInput = document.getElementById('task-subject');
-const taskDeadlineInput = document.getElementById('task-deadline');
-const taskRelaxHoursInput = document.getElementById('task-relax-hours');
-const taskListContainer = document.getElementById('task-list-container');
-const emptyState = document.getElementById('empty-state');
-const activeTaskCountElement = document.getElementById('active-task-count');
-const totalRelaxTimeElement = document.getElementById('total-relax-time');
-
-// Added in v2: Timer DOM Elements
-const timerCountdown = document.getElementById('timer-countdown');
-const timerPresetButtons = document.querySelectorAll('.btn-preset');
-const timerToggleBtn = document.getElementById('btn-timer-toggle');
-
-// Added in v3: AI Checkbox DOM
-const taskAiSplitInput = document.getElementById('task-ai-split');
+// DOM Elements (Assigned on DOMContentLoaded)
+let taskForm, taskTitleInput, taskSubjectInput, taskDeadlineInput, taskRelaxHoursInput;
+let taskListContainer, emptyState, activeTaskCountElement, totalRelaxTimeElement;
+let timerCountdown, timerPresetButtons, timerToggleBtn, taskAiSplitInput;
 
 // Default estimated hours multiplier / task helper
 const DEFAULT_ESTIMATED_RELAX_HOURS = 4;
 
 // Initialize Application
 document.addEventListener('DOMContentLoaded', () => {
+  // DOM Elements Assignment
+  taskForm = document.getElementById('add-task-form');
+  taskTitleInput = document.getElementById('task-title');
+  taskSubjectInput = document.getElementById('task-subject');
+  taskDeadlineInput = document.getElementById('task-deadline');
+  taskRelaxHoursInput = document.getElementById('task-relax-hours');
+  taskListContainer = document.getElementById('task-list-container');
+  emptyState = document.getElementById('empty-state');
+  activeTaskCountElement = document.getElementById('active-task-count');
+  totalRelaxTimeElement = document.getElementById('total-relax-time');
+  timerCountdown = document.getElementById('timer-countdown');
+  timerPresetButtons = document.querySelectorAll('.btn-preset');
+  timerToggleBtn = document.getElementById('btn-timer-toggle');
+  taskAiSplitInput = document.getElementById('task-ai-split');
+
   // Load data from LocalStorage
   const storedTasks = localStorage.getItem('relaxdue_tasks');
   const storedRelaxHours = localStorage.getItem('relaxdue_total_relax');
@@ -48,7 +49,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setMinutes(tomorrow.getMinutes() - tomorrow.getTimezoneOffset());
-  taskDeadlineInput.value = tomorrow.toISOString().slice(0, 16);
+  if (taskDeadlineInput) {
+    taskDeadlineInput.value = tomorrow.toISOString().slice(0, 16);
+  }
 
   // Initial UI Render
   updateScoreboard();
@@ -67,9 +70,11 @@ document.addEventListener('DOMContentLoaded', () => {
       timerEndTime = endTime;
       timerTotalSeconds = parseInt(storedTimerTotalSeconds, 10) || 0;
       document.body.classList.add('relax-mode-active');
-      timerToggleBtn.textContent = 'くつろぎをやめる';
-      timerToggleBtn.className = 'btn-timer btn-timer-stop';
-      timerToggleBtn.disabled = false;
+      if (timerToggleBtn) {
+        timerToggleBtn.textContent = 'くつろぎをやめる';
+        timerToggleBtn.className = 'btn-timer btn-timer-stop';
+        timerToggleBtn.disabled = false;
+      }
       disablePresets(true);
       startTimerInterval();
     } else {
@@ -83,25 +88,30 @@ document.addEventListener('DOMContentLoaded', () => {
   // Added in v2: Setup Timer Events
   initTimerEventListeners();
 
+  // Setup Form Submit Listener
+  if (taskForm) {
+    taskForm.addEventListener('submit', handleFormSubmit);
+  }
+
   // Start real-time countdown timer (every 1 second)
   setInterval(updateAllCountdowns, 1000);
 });
 
-// Event Listeners
-taskForm.addEventListener('submit', async (e) => {
+// Event Listeners - Form Submit Handler
+async function handleFormSubmit(e) {
   e.preventDefault();
 
   const title = taskTitleInput.value.trim();
   const subject = taskSubjectInput.value.trim();
   const deadlineStr = taskDeadlineInput.value;
   const relaxHours = parseFloat(taskRelaxHoursInput.value) || DEFAULT_ESTIMATED_RELAX_HOURS;
-  const useAiSplit = taskAiSplitInput.checked;
+  const useAiSplit = taskAiSplitInput ? taskAiSplitInput.checked : false;
 
   if (!title || !subject || !deadlineStr) return;
 
   // Disable submit button during processing
   const submitBtn = taskForm.querySelector('button[type="submit"]');
-  submitBtn.disabled = true;
+  if (submitBtn) submitBtn.disabled = true;
 
   let subtasks = [];
 
@@ -123,8 +133,8 @@ taskForm.addEventListener('submit', async (e) => {
     deadline: new Date(deadlineStr).toISOString(),
     estimatedHours: relaxHours,
     createdAt: Date.now(),
-    subtasks: subtasks, // Added in v3
-    isAiSplit: useAiSplit // Added in v3
+    subtasks: subtasks,
+    isAiSplit: useAiSplit
   };
 
   tasks.push(newTask);
@@ -134,19 +144,23 @@ taskForm.addEventListener('submit', async (e) => {
   // Reset form except defaults
   taskTitleInput.value = '';
   taskSubjectInput.value = '';
-  taskAiSplitInput.checked = true;
-  submitBtn.disabled = false;
+  if (taskAiSplitInput) taskAiSplitInput.checked = true;
+  if (submitBtn) submitBtn.disabled = false;
   
   // Set next default time
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setMinutes(tomorrow.getMinutes() - tomorrow.getTimezoneOffset());
-  taskDeadlineInput.value = tomorrow.toISOString().slice(0, 16);
-  taskRelaxHoursInput.value = DEFAULT_ESTIMATED_RELAX_HOURS;
+  if (taskDeadlineInput) {
+    taskDeadlineInput.value = tomorrow.toISOString().slice(0, 16);
+  }
+  if (taskRelaxHoursInput) {
+    taskRelaxHoursInput.value = DEFAULT_ESTIMATED_RELAX_HOURS;
+  }
   
   // Animate focus out
   document.activeElement.blur();
-});
+}
 
 // Save to LocalStorage
 function saveTasks() {
