@@ -44,7 +44,7 @@
       
       <!-- Left Column: Add Task Form & Relax Timer -->
       <section class="form-section">
-        <div class="form-card glass-card">
+        <div class="form-card glass-card tab-content" id="tab-content-add">
           <h2>📝 新しい課題を登録</h2>
           <form id="add-task-form">
             <!-- Task Title -->
@@ -94,7 +94,7 @@
         </div>
 
         <!-- Relax Timer Panel (Added in v2) -->
-        <div class="timer-card glass-card" id="relax-timer-panel">
+        <div class="timer-card glass-card tab-content" id="tab-content-timer">
           <h2>🛋️ 罪悪感ゼロタイマー</h2>
           <p style="font-size: 0.9rem; color: var(--color-text-secondary); margin-bottom: 1rem;">
             貯まった時間を使って、全力で休みましょう！
@@ -119,7 +119,7 @@
       </section>
 
       <!-- Right Column: Task List -->
-      <section class="list-section">
+      <section class="list-section tab-content active" id="tab-content-tasks">
         <div class="list-card glass-card">
           <div class="list-header">
             <h2>⏳ 提出期限が迫っている課題</h2>
@@ -142,6 +142,28 @@
 
     </div>
   </div>
+
+  <!-- Mobile Navigation Bar (Visible only on mobile) -->
+  <nav class="mobile-nav" id="mobile-nav">
+    <button class="nav-item active" data-tab="tasks">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801-1.206a2.25 2.25 0 00-3.302 0m3.302 0a2.25 2.25 0 013.302 0m-3.302 0H15m-6 6h1.5m-1.5 3h1.5m-1.5 3h1.5M9 9h1.5m1.5-3.75H18c1.135 0 2.098.845 2.192 1.976.059.716.08 1.432.062 2.151M3 6.108c0-1.135.845-2.098 1.976-2.192a48.424 48.424 0 011.123-.08m5.801-1.206a2.25 2.25 0 013.302 0m-3.302 0a2.25 2.25 0 00-3.302 0m3.302 0H9M3 9h1.5M3 12h1.5M3 15h1.5M3 18h1.5m.75-13.5h7.5" />
+      </svg>
+      <span>課題一覧</span>
+    </button>
+    <button class="nav-item" data-tab="add">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+      </svg>
+      <span>課題登録</span>
+    </button>
+    <button class="nav-item" data-tab="timer">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <span>タイマー</span>
+    </button>
+  </nav>
 
   <!-- Confetti Library -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>

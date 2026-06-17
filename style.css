@@ -998,13 +998,70 @@ body.relax-mode-active {
   line-height: 1.2;
 }
 
+/* Mobile Navigation Tab Bar (Base Style, Hidden by default) */
+.mobile-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: var(--bg-card);
+  backdrop-filter: blur(var(--blur-amount));
+  -webkit-backdrop-filter: blur(var(--blur-amount));
+  border-top: 1px solid var(--border-color);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.03);
+  z-index: 1000;
+  justify-content: space-around;
+  align-items: center;
+  padding: 0 1rem;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  width: 70px;
+  height: 100%;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: var(--transition-smooth);
+}
+
+.nav-item svg {
+  width: 20px;
+  height: 20px;
+  stroke: var(--color-text-secondary);
+  transition: var(--transition-smooth);
+}
+
+.nav-item:hover {
+  color: var(--color-text-primary);
+}
+
+.nav-item.active {
+  color: #a855f7;
+}
+
+.nav-item.active svg {
+  stroke: #a855f7;
+  transform: translateY(-2px);
+}
+
 /* ==========================================
    Responsive & Mobile Optimization (Smartphone Support)
    ========================================== */
 
 @media (max-width: 768px) {
   .container {
-    padding: 1.25rem 0.75rem;
+    padding: 1.25rem 0.75rem 80px 0.75rem;
   }
 
   header {
@@ -1055,6 +1112,7 @@ body.relax-mode-active {
 
   .dashboard-grid {
     gap: 1.5rem;
+    grid-template-columns: 1fr;
   }
 
   .form-card, .timer-card, .list-card {
@@ -1073,9 +1131,26 @@ body.relax-mode-active {
   .relax-banner {
     left: 1rem;
     right: 1rem;
-    bottom: 1rem;
+    bottom: 5.5rem;
     max-width: calc(100% - 2rem);
     padding: 1rem;
+  }
+
+  /* Mobile Navigation and Tab Content switching */
+  .mobile-nav {
+    display: flex;
+  }
+
+  .tab-content {
+    display: none !important;
+  }
+
+  .tab-content.active {
+    display: block !important;
+  }
+
+  section.list-section.tab-content.active {
+    display: block !important;
   }
 }
 

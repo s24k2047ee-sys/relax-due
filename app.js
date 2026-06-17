@@ -112,7 +112,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Start real-time countdown timer (every 1 second)
   setInterval(updateAllCountdowns, 1000);
+
+  // Setup Mobile Tab Navigation
+  initMobileTabNavigation();
 });
+
+// Setup Mobile Tab Navigation Event Listeners
+function initMobileTabNavigation() {
+  const navItems = document.querySelectorAll('.nav-item');
+  navItems.forEach(item => {
+    item.addEventListener('click', () => {
+      const tabName = item.dataset.tab;
+      switchTab(tabName);
+    });
+  });
+}
+
+// Global Tab Switching Logic
+window.switchTab = function(tabName) {
+  // 1. Update active states on tab buttons
+  const navItems = document.querySelectorAll('.nav-item');
+  navItems.forEach(item => {
+    if (item.dataset.tab === tabName) {
+      item.classList.add('active');
+    } else {
+      item.classList.remove('active');
+    }
+  });
+
+  // 2. Update active states on tab contents
+  const tabContents = document.querySelectorAll('.tab-content');
+  tabContents.forEach(content => {
+    if (content.id === `tab-content-${tabName}`) {
+      content.classList.add('active');
+    } else {
+      content.classList.remove('active');
+    }
+  });
+};
 
 // Event Listeners - Form Submit Handler
 async function handleFormSubmit(e) {
@@ -177,6 +214,11 @@ async function handleFormSubmit(e) {
   
   // Animate focus out
   document.activeElement.blur();
+
+  // If on mobile view, switch back to task list tab after adding a task
+  if (window.innerWidth <= 768) {
+    switchTab('tasks');
+  }
 }
 
 // Save to LocalStorage
