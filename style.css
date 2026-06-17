@@ -2,28 +2,28 @@
 
 :root {
   /* Color System */
-  --bg-primary: #0a0b10;
-  --bg-secondary: #12131c;
-  --bg-card: rgba(22, 24, 37, 0.7);
-  --bg-card-hover: rgba(30, 33, 50, 0.8);
-  --border-color: rgba(255, 255, 255, 0.08);
-  --border-color-hover: rgba(255, 255, 255, 0.15);
+  --bg-primary: #f8fafc;
+  --bg-secondary: #f1f5f9;
+  --bg-card: rgba(255, 255, 255, 0.7);
+  --bg-card-hover: rgba(255, 255, 255, 0.85);
+  --border-color: rgba(15, 23, 42, 0.08);
+  --border-color-hover: rgba(15, 23, 42, 0.15);
   
-  --color-text-primary: #ffffff;
-  --color-text-secondary: #94a3b8;
-  --color-text-muted: #64748b;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94a3b8;
   
   /* Brand Gradients */
-  --gradient-brand: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+  --gradient-brand: linear-gradient(135deg, #4f46e5 0%, #9333ea 50%, #db2777 100%);
   --gradient-safe: linear-gradient(135deg, #10b981 0%, #059669 100%);
   --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   --gradient-danger: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  --gradient-relax: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+  --gradient-relax: linear-gradient(135deg, #0891b2 0%, #2563eb 100%);
   
   /* Shadow & Blur */
-  --shadow-premium: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.15);
-  --blur-amount: 16px;
+  --shadow-premium: 0 10px 30px -10px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.03);
+  --shadow-glow: 0 0 25px rgba(79, 70, 229, 0.06);
+  --blur-amount: 20px;
   
   /* Transitions */
   --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -45,8 +45,8 @@ body {
   overflow-x: hidden;
   line-height: 1.5;
   background-image: 
-    radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
-    radial-gradient(circle at 90% 80%, rgba(236, 72, 153, 0.06) 0%, transparent 40%);
+    radial-gradient(circle at 10% 20%, rgba(79, 70, 229, 0.05) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(219, 39, 119, 0.03) 0%, transparent 40%);
   background-attachment: fixed;
 }
 
@@ -58,11 +58,11 @@ body {
   background: var(--bg-primary);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.1);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(15, 23, 42, 0.2);
 }
 
 /* Layout Utilities */
@@ -194,7 +194,7 @@ header {
 .form-control {
   width: 100%;
   padding: 0.8rem 1rem;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.8);
   border: 1px solid var(--border-color);
   border-radius: 10px;
   color: var(--color-text-primary);
@@ -206,7 +206,7 @@ header {
 .form-control:focus {
   outline: none;
   border-color: #a855f7;
-  box-shadow: 0 0 10px rgba(168, 85, 247, 0.2);
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.15);
 }
 
 .form-row {
@@ -225,13 +225,13 @@ button.btn-primary {
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
+  box-shadow: 0 4px 15px rgba(168, 85, 247, 0.2);
   transition: var(--transition-bounce);
 }
 
 button.btn-primary:hover {
   transform: scale(1.02);
-  box-shadow: 0 6px 20px rgba(168, 85, 247, 0.4);
+  box-shadow: 0 6px 20px rgba(168, 85, 247, 0.3);
 }
 
 button.btn-primary:active {
@@ -256,7 +256,7 @@ button.btn-primary:active {
 }
 
 .task-count {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.05);
   padding: 0.25rem 0.75rem;
   border-radius: 20px;
   font-size: 0.85rem;
@@ -289,14 +289,14 @@ button.btn-primary:active {
   flex-direction: column;
   gap: 0.75rem;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.45);
   border: 1px solid var(--border-color);
   transition: var(--transition-bounce);
   animation: slideIn 0.4s ease-out forwards;
 }
 
 .task-item:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.75);
   transform: scale(1.01);
 }
 
@@ -336,7 +336,7 @@ button.btn-primary:active {
   left: 0;
   height: 22px;
   width: 22px;
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: rgba(15, 23, 42, 0.04);
   border: 2px solid var(--color-text-muted);
   border-radius: 6px;
   transition: var(--transition-smooth);
@@ -344,7 +344,7 @@ button.btn-primary:active {
 
 .checkbox-container:hover input ~ .checkmark {
   border-color: var(--color-text-primary);
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(15, 23, 42, 0.08);
 }
 
 .checkbox-container input:checked ~ .checkmark {
@@ -400,7 +400,7 @@ button.btn-primary:active {
 }
 
 .task-tag {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.04);
   padding: 0.1rem 0.5rem;
   border-radius: 4px;
   font-weight: 500;
@@ -453,7 +453,7 @@ button.btn-primary:active {
 .gauge-container {
   width: 100%;
   height: 6px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(15, 23, 42, 0.06);
   border-radius: 3px;
   overflow: hidden;
 }
@@ -570,9 +570,9 @@ button.btn-primary:active {
 /* Active Relax Mode (Background Overlay) */
 body.relax-mode-active {
   background-image: 
-    radial-gradient(circle at 10% 20%, rgba(6, 182, 212, 0.15) 0%, transparent 40%),
-    radial-gradient(circle at 90% 80%, rgba(59, 130, 246, 0.12) 0%, transparent 40%),
-    linear-gradient(135deg, #02040a 0%, #070f24 100%) !important;
+    radial-gradient(circle at 10% 20%, rgba(6, 182, 212, 0.12) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(59, 130, 246, 0.08) 0%, transparent 40%),
+    linear-gradient(135deg, #f0fdf4 0%, #ecfeff 50%, #faf5ff 100%) !important;
   animation: bgPulse 10s ease infinite alternate;
 }
 
@@ -599,7 +599,7 @@ body.relax-mode-active {
   font-weight: 800;
   letter-spacing: -2px;
   color: #06b6d4;
-  text-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
+  text-shadow: 0 0 20px rgba(6, 182, 212, 0.2);
   margin: 1.5rem 0;
   line-height: 1;
 }
@@ -612,7 +612,7 @@ body.relax-mode-active {
 }
 
 .btn-preset {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(15, 23, 42, 0.03);
   border: 1px solid var(--border-color);
   color: var(--color-text-primary);
   padding: 0.6rem;
@@ -625,14 +625,15 @@ body.relax-mode-active {
 }
 
 .btn-preset:hover:not(:disabled) {
-  background: rgba(6, 182, 212, 0.2);
+  background: rgba(6, 182, 212, 0.15);
   border-color: #06b6d4;
 }
 
 .btn-preset.active {
   background: var(--gradient-relax);
   border-color: transparent;
-  box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.2);
+  color: white;
 }
 
 .btn-preset:disabled {
@@ -660,22 +661,22 @@ body.relax-mode-active {
 .btn-timer-start {
   background: var(--gradient-relax);
   color: white;
-  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
+  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.2);
 }
 
 .btn-timer-start:hover:not(:disabled) {
   transform: scale(1.02);
-  box-shadow: 0 6px 20px rgba(6, 182, 212, 0.4);
+  box-shadow: 0 6px 20px rgba(6, 182, 212, 0.3);
 }
 
 .btn-timer-stop {
-  background: rgba(239, 68, 68, 0.2);
-  border: 1px solid rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
   color: #ef4444;
 }
 
 .btn-timer-stop:hover {
-  background: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.2);
   transform: scale(1.02);
 }
 
@@ -750,7 +751,7 @@ body.relax-mode-active {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(15, 23, 42, 0.06);
   border: 1px solid var(--border-color);
   transition: .4s;
   border-radius: 24px;
@@ -766,13 +767,13 @@ body.relax-mode-active {
   background-color: white;
   transition: .4s;
   border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
 }
 
 .switch input:checked + .slider {
   background: var(--gradient-brand);
   border-color: transparent;
-  box-shadow: 0 0 10px rgba(168, 85, 247, 0.4);
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.25);
 }
 
 .switch input:checked + .slider:before {
@@ -793,14 +794,14 @@ body.relax-mode-active {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  box-shadow: 0 0 8px rgba(168, 85, 247, 0.4);
+  box-shadow: 0 0 8px rgba(168, 85, 247, 0.25);
 }
 
 /* Nested Subtask List */
 .subtask-list {
   margin-top: 0.75rem;
   padding-left: 1.5rem;
-  border-left: 1px dotted rgba(255, 255, 255, 0.15);
+  border-left: 1px dotted rgba(15, 23, 42, 0.15);
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -812,15 +813,15 @@ body.relax-mode-active {
   align-items: center;
   justify-content: space-between;
   padding: 0.4rem 0.5rem;
-  background: rgba(255, 255, 255, 0.01);
-  border: 1px solid rgba(255, 255, 255, 0.03);
+  background: rgba(15, 23, 42, 0.015);
+  border: 1px solid rgba(15, 23, 42, 0.04);
   border-radius: 8px;
   font-size: 0.85rem;
   transition: var(--transition-smooth);
 }
 
 .subtask-item:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(15, 23, 42, 0.035);
 }
 
 .subtask-label {
@@ -859,14 +860,14 @@ body.relax-mode-active {
 .ai-thinking-card {
   padding: 1.5rem;
   text-align: center;
-  background: rgba(168, 85, 247, 0.03);
-  border: 1px dashed rgba(168, 85, 247, 0.3) !important;
+  background: rgba(168, 85, 247, 0.06);
+  border: 1px dashed rgba(168, 85, 247, 0.4) !important;
   animation: aiPulse 2s infinite alternate;
 }
 
 @keyframes aiPulse {
-  0% { border-color: rgba(168, 85, 247, 0.2); box-shadow: 0 0 10px rgba(168, 85, 247, 0.05); }
-  100% { border-color: rgba(168, 85, 247, 0.5); box-shadow: 0 0 20px rgba(168, 85, 247, 0.15); }
+  0% { border-color: rgba(168, 85, 247, 0.25); box-shadow: 0 0 10px rgba(168, 85, 247, 0.03); }
+  100% { border-color: rgba(168, 85, 247, 0.5); box-shadow: 0 0 20px rgba(168, 85, 247, 0.1); }
 }
 
 .ai-thinking-title {
@@ -936,7 +937,7 @@ body.relax-mode-active {
 .subtask-add-input {
   flex: 1;
   padding: 0.35rem 0.6rem;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.8);
   border: 1px solid var(--border-color);
   border-radius: 6px;
   color: var(--color-text-primary);
@@ -948,12 +949,12 @@ body.relax-mode-active {
 .subtask-add-input:focus {
   outline: none;
   border-color: #06b6d4;
-  box-shadow: 0 0 5px rgba(6, 182, 212, 0.2);
+  box-shadow: 0 0 5px rgba(6, 182, 212, 0.15);
 }
 
 .btn-subtask-add {
   padding: 0.35rem 0.75rem;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(15, 23, 42, 0.04);
   border: 1px solid var(--border-color);
   border-radius: 6px;
   color: var(--color-text-secondary);
