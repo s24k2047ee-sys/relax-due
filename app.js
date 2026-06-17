@@ -188,7 +188,8 @@ async function handleFormSubmit(e) {
     estimatedHours: relaxHours,
     createdAt: Date.now(),
     subtasks: subtasks,
-    isAiSplit: useAiSplit
+    isAiSplit: useAiSplit,
+    expanded: false
   };
 
   tasks.push(newTask);
@@ -393,14 +394,15 @@ function renderTasks() {
     `;
     subtasksHTML += `</div>`;
 
+    const isExpanded = task.expanded === true;
     const taskElement = document.createElement('div');
-    taskElement.className = 'task-item';
+    taskElement.className = `task-item${isExpanded ? ' expanded' : ''}`;
     taskElement.id = `task-${task.id}`;
     taskElement.dataset.deadline = task.deadline;
     taskElement.dataset.created = task.createdAt;
 
     taskElement.innerHTML = `
-      <div class="task-item-main">
+      <div class="task-item-main" onclick="toggleExpandTask('${task.id}', event)" style="cursor: pointer;">
         <div class="task-item-left">
           <label class="checkbox-container">
             <input type="checkbox" ${hasSubtasks ? 'disabled' : `onchange="completeTask('${task.id}')"`} ${allSubtasksCompleted ? 'checked' : ''}>
@@ -416,11 +418,18 @@ function renderTasks() {
             </div>
           </label>
         </div>
-        <button class="btn-delete" onclick="deleteTask('${task.id}')" title="削除">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" style="width: 18px; height: 18px;">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-          </svg>
-        </button>
+        <div class="task-item-actions" style="display: flex; align-items: center; gap: 0.25rem;">
+          <button class="btn-toggle-expand" onclick="toggleExpandTask('${task.id}', event)" title="詳細を開閉">
+            <svg class="arrow-icon ${isExpanded ? 'rotated' : ''}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" style="width: 16px; height: 16px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </button>
+          <button class="btn-delete" onclick="deleteTask('${task.id}')" title="削除">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" style="width: 18px; height: 18px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+            </svg>
+          </button>
+        </div>
       </div>
       
       <!-- Live Deadline Progress Gauge -->
@@ -1164,5 +1173,41 @@ window.deleteSubtask = function(taskId, subtaskId) {
   // Save changes & render
   saveTasks();
   renderTasks();
+};
+
+// Toggle task item expanded state (mobile responsive)
+window.toggleExpandTask = function(taskId, event) {
+  // Prevent expanding when clicking interactive elements
+  if (event) {
+    const target = event.target;
+    if (target.tagName.toLowerCase() === 'input' || 
+        target.closest('input') ||
+        target.closest('.checkmark') || 
+        target.closest('.checkbox-container') ||
+        target.closest('.btn-delete') || 
+        target.closest('.btn-subtask-delete') || 
+        target.closest('.subtask-add-container')) {
+      return;
+    }
+  }
+
+  const taskIndex = tasks.findIndex(t => t.id === taskId);
+  if (taskIndex === -1) return;
+
+  const task = tasks[taskIndex];
+  task.expanded = !task.expanded;
+  saveTasks();
+
+  const taskElement = document.getElementById(`task-${taskId}`);
+  if (taskElement) {
+    const arrowIcon = taskElement.querySelector('.arrow-icon');
+    if (task.expanded) {
+      taskElement.classList.add('expanded');
+      if (arrowIcon) arrowIcon.classList.add('rotated');
+    } else {
+      taskElement.classList.remove('expanded');
+      if (arrowIcon) arrowIcon.classList.remove('rotated');
+    }
+  }
 };
 

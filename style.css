@@ -1224,5 +1224,62 @@ body.relax-mode-active {
   }
 }
 
+/* ==========================================
+   Task Item Accordion Style (Mobile Only)
+   ========================================== */
+.btn-toggle-expand {
+  display: none; /* デフォルトではPC等で非表示 */
+}
+
+@media (max-width: 768px) {
+  .btn-toggle-expand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 6px;
+    transition: var(--transition-smooth);
+    width: 28px;
+    height: 28px;
+  }
+
+  .btn-toggle-expand:hover {
+    color: var(--color-text-primary);
+    background: rgba(15, 23, 42, 0.05);
+  }
+
+  /* 初期状態（折りたたみ時）は非表示 */
+  .task-item:not(.expanded) .deadline-section,
+  .task-item:not(.expanded) .subtask-list {
+    display: none !important;
+  }
+
+  /* 矢印の回転 */
+  .arrow-icon {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .arrow-icon.rotated {
+    transform: rotate(180deg);
+  }
+  
+  /* タスク情報のスマホ最適化：折りたたみ時も綺麗に見えるように */
+  .task-item-main {
+    align-items: center; /* 縦中央揃えにすることでスッキリさせる */
+  }
+
+  .task-title {
+    font-size: 0.95rem; /* スマホではやや小さく */
+  }
+
+  .task-meta {
+    gap: 0.3rem 0.5rem;
+  }
+}
+
 
 
