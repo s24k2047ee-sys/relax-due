@@ -54,8 +54,15 @@ document.addEventListener('DOMContentLoaded', () => {
   cumulativeRelaxTimeElement = document.getElementById('cumulative-relax-time');
 
   // Initialize Supabase Client
-  if (typeof window.supabase !== 'undefined') {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  try {
+    if (typeof window.supabase !== 'undefined') {
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } else {
+      console.warn('Supabase SDK not loaded.');
+    }
+  } catch (err) {
+    console.error('Supabase client initialization failed:', err);
+    alert('Supabase初期化エラー: ' + err.message);
   }
 
   // Get Auth DOM elements
@@ -81,17 +88,22 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnLogout) btnLogout.addEventListener('click', handleLogout);
 
   // Monitor Supabase Auth state
-  if (supabase) {
-    supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
-        currentUser = session.user;
-        updateAuthUI(true);
-        syncDataFromCloud();
-      } else {
-        currentUser = null;
-        updateAuthUI(false);
-      }
-    });
+  try {
+    if (supabase) {
+      supabase.auth.onAuthStateChange((event, session) => {
+        if (session) {
+          currentUser = session.user;
+          updateAuthUI(true);
+          syncDataFromCloud();
+        } else {
+          currentUser = null;
+          updateAuthUI(false);
+        }
+      });
+    }
+  } catch (err) {
+    console.error('Supabase auth state monitoring failed:', err);
+    alert('Supabase認証監視エラー: ' + err.message);
   }
 
   // Load data from LocalStorage
