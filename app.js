@@ -5,6 +5,17 @@ let totalRelaxHours = 0;
 let totalCompletedTasks = 0;
 let cumulativeRelaxHours = 0;
 
+// Supabase Config & State
+const SUPABASE_URL = 'https://hbmantmeqtmrhggyabbp.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_p4okasZ0tp7Ljh6zJlwqxQ_DgEVnIk4';
+let supabase = null;
+let currentUser = null;
+let isSyncing = false;
+
+// DOM Elements for Auth
+let authModal, btnCloudSync, btnAuthClose, authForm, authEmailInput, authPasswordInput, authErrorMsg;
+let btnLoginSubmit, btnSignupSubmit, btnLogout, authProfileSection, authUserEmail, syncStatusText;
+
 // Added in v2: Timer State
 let timerInterval = null;
 let timerActive = false;
@@ -41,6 +52,47 @@ document.addEventListener('DOMContentLoaded', () => {
   // Added in v4: Achievement DOM
   totalCompletedTasksElement = document.getElementById('total-completed-tasks');
   cumulativeRelaxTimeElement = document.getElementById('cumulative-relax-time');
+
+  // Initialize Supabase Client
+  if (typeof window.supabase !== 'undefined') {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+
+  // Get Auth DOM elements
+  authModal = document.getElementById('auth-modal');
+  btnCloudSync = document.getElementById('btn-cloud-sync');
+  btnAuthClose = document.getElementById('btn-auth-close');
+  authForm = document.getElementById('auth-form');
+  authEmailInput = document.getElementById('auth-email');
+  authPasswordInput = document.getElementById('auth-password');
+  authErrorMsg = document.getElementById('auth-error-msg');
+  btnLoginSubmit = document.getElementById('btn-login-submit');
+  btnSignupSubmit = document.getElementById('btn-signup-submit');
+  btnLogout = document.getElementById('btn-logout');
+  authProfileSection = document.getElementById('auth-profile-section');
+  authUserEmail = document.getElementById('auth-user-email');
+  syncStatusText = document.getElementById('sync-status-text');
+
+  // Setup Auth Listeners
+  if (btnCloudSync) btnCloudSync.addEventListener('click', openAuthModal);
+  if (btnAuthClose) btnAuthClose.addEventListener('click', closeAuthModal);
+  if (authForm) authForm.addEventListener('submit', handleLogin);
+  if (btnSignupSubmit) btnSignupSubmit.addEventListener('click', handleSignup);
+  if (btnLogout) btnLogout.addEventListener('click', handleLogout);
+
+  // Monitor Supabase Auth state
+  if (supabase) {
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        currentUser = session.user;
+        updateAuthUI(true);
+        syncDataFromCloud();
+      } else {
+        currentUser = null;
+        updateAuthUI(false);
+      }
+    });
+  }
 
   // Load data from LocalStorage
   const storedTasks = localStorage.getItem('relaxdue_tasks');
@@ -222,22 +274,37 @@ async function handleFormSubmit(e) {
   }
 }
 
-// Save to LocalStorage
+// Save to LocalStorage & Cloud (if logged in)
 function saveTasks() {
   localStorage.setItem('relaxdue_tasks', JSON.stringify(tasks));
+  triggerCloudUpload();
 }
 
 function saveRelaxHours() {
   localStorage.setItem('relaxdue_total_relax', totalRelaxHours.toString());
+  triggerCloudUpload();
 }
 
 // Added in v4: Save Cumulative Achievements
 function saveCompletedCount() {
   localStorage.setItem('relaxdue_completed_count', totalCompletedTasks.toString());
+  triggerCloudUpload();
 }
 
 function saveCumulativeRelax() {
   localStorage.setItem('relaxdue_cumulative_relax', cumulativeRelaxHours.toString());
+  triggerCloudUpload();
+}
+
+// Debounce helper to prevent multiple rapid database requests
+let uploadTimeout = null;
+function triggerCloudUpload() {
+  if (!supabase || !currentUser) return;
+  
+  if (uploadTimeout) clearTimeout(uploadTimeout);
+  uploadTimeout = setTimeout(() => {
+    uploadDataToCloud(tasks, totalRelaxHours, totalCompletedTasks, cumulativeRelaxHours);
+  }, 1000);
 }
 
 // Update Scoreboard UI
@@ -1210,4 +1277,222 @@ window.toggleExpandTask = function(taskId, event) {
     }
   }
 };
+
+/* ==========================================
+   Supabase Authentication & Cloud Sync
+   ========================================== */
+
+function openAuthModal() {
+  if (authModal) {
+    authModal.style.display = 'flex';
+    if (authErrorMsg) authErrorMsg.style.display = 'none';
+  }
+}
+
+function closeAuthModal() {
+  if (authModal) {
+    authModal.style.display = 'none';
+  }
+}
+
+function updateAuthUI(loggedIn) {
+  if (loggedIn && currentUser) {
+    if (syncStatusText) {
+      syncStatusText.textContent = '同期中';
+      syncStatusText.style.color = '#a855f7';
+    }
+    if (authProfileSection) authProfileSection.style.display = 'block';
+    if (authForm) authForm.style.display = 'none';
+    if (authUserEmail) authUserEmail.textContent = currentUser.email;
+    const syncIcon = document.querySelector('.sync-icon');
+    if (syncIcon) {
+      syncIcon.textContent = '👤';
+      syncIcon.classList.add('syncing');
+    }
+  } else {
+    if (syncStatusText) {
+      syncStatusText.textContent = 'ログインして同期';
+      syncStatusText.style.color = 'var(--color-text-secondary)';
+    }
+    if (authProfileSection) authProfileSection.style.display = 'none';
+    if (authForm) authForm.style.display = 'block';
+    const syncIcon = document.querySelector('.sync-icon');
+    if (syncIcon) {
+      syncIcon.textContent = '☁️';
+      syncIcon.classList.remove('syncing');
+    }
+  }
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const email = authEmailInput.value.trim();
+  const password = authPasswordInput.value;
+
+  if (!supabase) return;
+
+  if (authErrorMsg) authErrorMsg.style.display = 'none';
+  setAuthLoading(true);
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  setAuthLoading(false);
+
+  if (error) {
+    showAuthError(error.message);
+  } else {
+    closeAuthModal();
+  }
+}
+
+async function handleSignup() {
+  const email = authEmailInput.value.trim();
+  const password = authPasswordInput.value;
+
+  if (!email || password.length < 6) {
+    showAuthError('メールアドレスと6文字以上のパスワードを入力してください。');
+    return;
+  }
+
+  if (!supabase) return;
+
+  if (authErrorMsg) authErrorMsg.style.display = 'none';
+  setAuthLoading(true);
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password
+  });
+
+  setAuthLoading(false);
+
+  if (error) {
+    showAuthError(error.message);
+  } else {
+    alert('アカウントが作成されました！自動でログインされない場合は、再度ログインフォームからログインしてください。');
+    if (data.session) {
+      closeAuthModal();
+    }
+  }
+}
+
+async function handleLogout() {
+  if (!supabase) return;
+  
+  if (confirm('ログアウトしますか？ローカルのデータはそのまま残ります。')) {
+    await supabase.auth.signOut();
+    closeAuthModal();
+  }
+}
+
+function setAuthLoading(loading) {
+  if (btnLoginSubmit) btnLoginSubmit.disabled = loading;
+  if (btnSignupSubmit) btnSignupSubmit.disabled = loading;
+  if (btnLoginSubmit) btnLoginSubmit.textContent = loading ? '処理中...' : 'ログイン';
+}
+
+function showAuthError(msg) {
+  if (authErrorMsg) {
+    authErrorMsg.textContent = `エラー: ${msg}`;
+    authErrorMsg.style.display = 'block';
+  }
+}
+
+// Sync data from Supabase Cloud
+async function syncDataFromCloud() {
+  if (!supabase || !currentUser || isSyncing) return;
+
+  isSyncing = true;
+  const syncIcon = document.querySelector('.sync-icon');
+  if (syncIcon) syncIcon.classList.add('syncing');
+
+  try {
+    const { data, error } = await supabase
+      .from('relaxdue_sync')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      throw error;
+    }
+
+    const localTasks = tasks;
+    const localRelaxHours = totalRelaxHours;
+    const localCompletedCount = totalCompletedTasks;
+    const localCumulativeRelax = cumulativeRelaxHours;
+
+    if (!data) {
+      // First sync for this user: Upload local data to cloud
+      await uploadDataToCloud(localTasks, localRelaxHours, localCompletedCount, localCumulativeRelax);
+    } else {
+      // Merge Cloud & Local data
+      const cloudTasks = data.tasks || [];
+      const cloudRelaxHours = parseFloat(data.total_relax_hours) || 0;
+      const cloudCompletedCount = parseInt(data.total_completed_tasks, 10) || 0;
+      const cloudCumulativeRelax = parseFloat(data.cumulative_relax_hours) || 0;
+
+      // Merge Tasks by Unique ID
+      const mergedTasks = [...cloudTasks];
+      localTasks.forEach(lt => {
+        if (!mergedTasks.some(ct => ct.id === lt.id)) {
+          mergedTasks.push(lt);
+        }
+      });
+
+      // Keep maximum values for progress states
+      const finalRelaxHours = Math.max(localRelaxHours, cloudRelaxHours);
+      const finalCompletedCount = Math.max(localCompletedCount, cloudCompletedCount);
+      const finalCumulativeRelax = Math.max(localCumulativeRelax, cloudCumulativeRelax);
+
+      // Save to local state
+      tasks = mergedTasks;
+      totalRelaxHours = finalRelaxHours;
+      totalCompletedTasks = finalCompletedCount;
+      cumulativeRelaxHours = finalCumulativeRelax;
+
+      saveTasks();
+      saveRelaxHours();
+      saveCompletedCount();
+      saveCumulativeRelax();
+
+      // Refresh UI
+      updateScoreboard();
+      renderTasks();
+
+      // Update cloud to reflect merged state
+      await uploadDataToCloud(tasks, totalRelaxHours, totalCompletedTasks, cumulativeRelaxHours);
+    }
+  } catch (err) {
+    console.error('クラウド同期中にエラーが発生しました:', err);
+  } finally {
+    isSyncing = false;
+    if (syncIcon) syncIcon.classList.remove('syncing');
+  }
+}
+
+// Upload current state to Supabase Cloud
+async function uploadDataToCloud(tasksData, relaxHoursData, completedCountData, cumulativeRelaxData) {
+  if (!supabase || !currentUser) return;
+
+  const payload = {
+    user_id: currentUser.id,
+    tasks: tasksData,
+    total_relax_hours: relaxHoursData,
+    total_completed_tasks: completedCountData,
+    cumulative_relax_hours: cumulativeRelaxData,
+    updated_at: new Date().toISOString()
+  };
+
+  const { error } = await supabase
+    .from('relaxdue_sync')
+    .upsert(payload, { onConflict: 'user_id' });
+
+  if (error) {
+    console.error('クラウドへのアップロードに失敗しました:', error);
+  }
+}
 
