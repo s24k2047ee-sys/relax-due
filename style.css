@@ -998,5 +998,131 @@ body.relax-mode-active {
   line-height: 1.2;
 }
 
+/* ==========================================
+   Responsive & Mobile Optimization (Smartphone Support)
+   ========================================== */
+
+@media (max-width: 768px) {
+  .container {
+    padding: 1.25rem 0.75rem;
+  }
+
+  header {
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1.25rem;
+    text-align: center;
+  }
+
+  .logo-section h1 {
+    font-size: 1.8rem;
+  }
+
+  .logo-section p {
+    font-size: 0.85rem;
+  }
+
+  .relax-scoreboard {
+    flex-direction: column;
+    width: 100%;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .achievement-badge-container {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .score-card, .achievement-card {
+    width: 100%;
+    max-width: 280px;
+    align-items: center;
+    padding: 0.75rem 1rem;
+  }
+
+  .score-value {
+    font-size: 1.6rem;
+  }
+
+  .achievement-value {
+    font-size: 1.15rem;
+  }
+
+  .dashboard-grid {
+    gap: 1.5rem;
+  }
+
+  .form-card, .timer-card, .list-card {
+    padding: 1.25rem;
+  }
+
+  .task-meta {
+    flex-wrap: wrap;
+    gap: 0.4rem 0.6rem;
+  }
+
+  .timer-display {
+    font-size: 3rem;
+  }
+
+  .relax-banner {
+    left: 1rem;
+    right: 1rem;
+    bottom: 1rem;
+    max-width: calc(100% - 2rem);
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .timer-preset-container {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .subtask-add-container {
+    flex-direction: column;
+    padding-left: 0.75rem;
+  }
+
+  .btn-subtask-add {
+    width: 100%;
+    padding: 0.5rem;
+  }
+
+  .subtask-list {
+    padding-left: 0.75rem;
+  }
+
+  .task-item {
+    padding: 1rem 0.75rem;
+  }
+
+  .checkbox-container {
+    padding-left: 1.75rem;
+  }
+  
+  .checkmark {
+    top: 3px;
+    height: 20px;
+    width: 20px;
+  }
+  
+  .checkbox-container .checkmark:after {
+    left: 5px;
+    top: 1px;
+    width: 5px;
+    height: 10px;
+  }
+
+  .task-title {
+    font-size: 1rem;
+  }
+}
+
 
 
