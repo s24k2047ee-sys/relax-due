@@ -1,6 +1,9 @@
 // State Management
 let tasks = [];
 let totalRelaxHours = 0;
+// Added in v4: Cumulative Achievements State
+let totalCompletedTasks = 0;
+let cumulativeRelaxHours = 0;
 
 // Added in v2: Timer State
 let timerInterval = null;
@@ -13,6 +16,8 @@ let selectedTimerMinutes = 0;
 let taskForm, taskTitleInput, taskSubjectInput, taskDeadlineInput, taskRelaxHoursInput;
 let taskListContainer, emptyState, activeTaskCountElement, totalRelaxTimeElement;
 let timerCountdown, timerPresetButtons, timerToggleBtn, taskAiSplitInput;
+// Added in v4: Achievement DOM Elements
+let totalCompletedTasksElement, cumulativeRelaxTimeElement;
 
 // Default estimated hours multiplier / task helper
 const DEFAULT_ESTIMATED_RELAX_HOURS = 4;
@@ -33,16 +38,28 @@ document.addEventListener('DOMContentLoaded', () => {
   timerPresetButtons = document.querySelectorAll('.btn-preset');
   timerToggleBtn = document.getElementById('btn-timer-toggle');
   taskAiSplitInput = document.getElementById('task-ai-split');
+  // Added in v4: Achievement DOM
+  totalCompletedTasksElement = document.getElementById('total-completed-tasks');
+  cumulativeRelaxTimeElement = document.getElementById('cumulative-relax-time');
 
   // Load data from LocalStorage
   const storedTasks = localStorage.getItem('relaxdue_tasks');
   const storedRelaxHours = localStorage.getItem('relaxdue_total_relax');
+  // Added in v4: Load Cumulative Achievements
+  const storedCompletedCount = localStorage.getItem('relaxdue_completed_count');
+  const storedCumulativeRelax = localStorage.getItem('relaxdue_cumulative_relax');
 
   if (storedTasks) {
     tasks = JSON.parse(storedTasks);
   }
   if (storedRelaxHours) {
     totalRelaxHours = parseFloat(storedRelaxHours);
+  }
+  if (storedCompletedCount) {
+    totalCompletedTasks = parseInt(storedCompletedCount, 10);
+  }
+  if (storedCumulativeRelax) {
+    cumulativeRelaxHours = parseFloat(storedCumulativeRelax);
   }
 
   // Set default deadline to tomorrow same time
@@ -171,10 +188,28 @@ function saveRelaxHours() {
   localStorage.setItem('relaxdue_total_relax', totalRelaxHours.toString());
 }
 
+// Added in v4: Save Cumulative Achievements
+function saveCompletedCount() {
+  localStorage.setItem('relaxdue_completed_count', totalCompletedTasks.toString());
+}
+
+function saveCumulativeRelax() {
+  localStorage.setItem('relaxdue_cumulative_relax', cumulativeRelaxHours.toString());
+}
+
 // Update Scoreboard UI
 function updateScoreboard() {
   // Round to 2 decimal places to handle fractions of hours (e.g. 0.5 hours for 30 mins)
   totalRelaxTimeElement.textContent = Math.round(totalRelaxHours * 100) / 100;
+  
+  // Added in v4: Render cumulative achievements
+  if (totalCompletedTasksElement) {
+    totalCompletedTasksElement.textContent = totalCompletedTasks;
+  }
+  if (cumulativeRelaxTimeElement) {
+    cumulativeRelaxTimeElement.textContent = Math.round(cumulativeRelaxHours * 100) / 100;
+  }
+
   // Added in v2: Update timer validation when scoreboard changes
   if (!timerActive) {
     validateTimerLaunch();
@@ -278,26 +313,43 @@ function renderTasks() {
       minute: '2-digit'
     });
 
-    const hasSubtasks = task.subtasks && task.subtasks.length > 0;
+    // Initialize subtasks array if undefined (backward compatibility)
+    if (!task.subtasks) {
+      task.subtasks = [];
+    }
+
+    const hasSubtasks = task.subtasks.length > 0;
     const allSubtasksCompleted = hasSubtasks && task.subtasks.every(st => st.completed);
 
-    // Generate Subtasks HTML if any
-    let subtasksHTML = '';
-    if (hasSubtasks) {
-      subtasksHTML = `<div class="subtask-list">`;
-      task.subtasks.forEach(subtask => {
-        subtasksHTML += `
-          <div class="subtask-item" id="subtask-${task.id}-${subtask.id}">
-            <label class="subtask-label">
-              <input type="checkbox" ${subtask.completed ? 'checked' : ''} onchange="toggleSubtask('${task.id}', '${subtask.id}')">
-              <span class="subtask-text">${escapeHTML(subtask.text)}</span>
-            </label>
+    // Generate Subtasks HTML (Always generate container in v4 so we can add manual subtasks)
+    let subtasksHTML = `<div class="subtask-list" id="subtask-list-${task.id}">`;
+    task.subtasks.forEach(subtask => {
+      subtasksHTML += `
+        <div class="subtask-item" id="subtask-${task.id}-${subtask.id}">
+          <label class="subtask-label">
+            <input type="checkbox" ${subtask.completed ? 'checked' : ''} onchange="toggleSubtask('${task.id}', '${subtask.id}')">
+            <span class="subtask-text">${escapeHTML(subtask.text)}</span>
+          </label>
+          <div style="display: flex; align-items: center;">
             <span class="subtask-reward">🎁 ＋${Math.round(subtask.rewardHours * 100) / 100}時間</span>
+            <button class="btn-subtask-delete" onclick="deleteSubtask('${task.id}', '${subtask.id}')" title="サブタスクを削除">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" style="width: 12px; height: 12px;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-        `;
-      });
-      subtasksHTML += `</div>`;
-    }
+        </div>
+      `;
+    });
+
+    // Inline Add Subtask Input Form
+    subtasksHTML += `
+      <div class="subtask-add-container">
+        <input type="text" class="subtask-add-input" id="subtask-add-input-${task.id}" placeholder="＋ サブタスクを手動で追加..." autocomplete="off">
+        <button class="btn-subtask-add" onclick="addSubtask('${task.id}')">追加</button>
+      </div>
+    `;
+    subtasksHTML += `</div>`;
 
     const taskElement = document.createElement('div');
     taskElement.className = 'task-item';
@@ -340,7 +392,7 @@ function renderTasks() {
         </div>
       </div>
 
-      <!-- Nested Subtasks Container (v3) -->
+      <!-- Nested Subtasks Container (v4) -->
       ${subtasksHTML}
     `;
 
@@ -410,11 +462,18 @@ window.completeTask = function(taskId) {
   setTimeout(() => {
     // 5. Update State
     totalRelaxHours += rewardHours;
+
+    // Added in v4: Increment cumulative achievements
+    totalCompletedTasks += 1;
+    cumulativeRelaxHours += completedTask.estimatedHours;
+
     tasks.splice(taskIndex, 1);
 
     // 6. Save and re-render
     saveTasks();
     saveRelaxHours();
+    saveCompletedCount();
+    saveCumulativeRelax();
     updateScoreboard();
     renderTasks();
   }, 300);
@@ -997,3 +1056,71 @@ function triggerMiniConfetti() {
     });
   }
 }
+
+// Added in v4: Manually add a subtask to a task
+window.addSubtask = function(taskId) {
+  const taskIndex = tasks.findIndex(t => t.id === taskId);
+  if (taskIndex === -1) return;
+
+  const task = tasks[taskIndex];
+  const inputEl = document.getElementById(`subtask-add-input-${taskId}`);
+  if (!inputEl) return;
+
+  const subtaskText = inputEl.value.trim();
+  if (!subtaskText) return;
+
+  // Initialize subtasks array if undefined
+  if (!task.subtasks) {
+    task.subtasks = [];
+  }
+
+  // Create new subtask (default reward: 0.5 hours)
+  const defaultSubtaskReward = 0.5;
+  const newSubtask = {
+    id: `st-${Date.now()}-${task.subtasks.length}`,
+    text: subtaskText,
+    completed: false,
+    rewardHours: defaultSubtaskReward
+  };
+
+  task.subtasks.push(newSubtask);
+  
+  // Update parent task's total reward estimation
+  task.estimatedHours = (parseFloat(task.estimatedHours) || 0) + defaultSubtaskReward;
+
+  // Save changes & render
+  saveTasks();
+  renderTasks();
+};
+
+// Added in v4: Manually delete a subtask from a task
+window.deleteSubtask = function(taskId, subtaskId) {
+  const taskIndex = tasks.findIndex(t => t.id === taskId);
+  if (taskIndex === -1) return;
+
+  const task = tasks[taskIndex];
+  if (!task.subtasks) return;
+
+  const subtaskIndex = task.subtasks.findIndex(st => st.id === subtaskId);
+  if (subtaskIndex === -1) return;
+
+  const subtask = task.subtasks[subtaskIndex];
+
+  // If the subtask was already completed, deduct the reward from totalRelaxHours
+  if (subtask.completed) {
+    totalRelaxHours = Math.max(0, totalRelaxHours - (parseFloat(subtask.rewardHours) || 0));
+    saveRelaxHours();
+    updateScoreboard();
+  }
+
+  // Deduct the reward from the parent task's total estimated hours
+  task.estimatedHours = Math.max(0, (parseFloat(task.estimatedHours) || 0) - (parseFloat(subtask.rewardHours) || 0));
+
+  // Remove the subtask
+  task.subtasks.splice(subtaskIndex, 1);
+
+  // Save changes & render
+  saveTasks();
+  renderTasks();
+};
+
