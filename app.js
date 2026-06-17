@@ -8,7 +8,7 @@ let cumulativeRelaxHours = 0;
 // Supabase Config & State
 const SUPABASE_URL = 'https://hbmantmeqtmrhggyabbp.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_p4okasZ0tp7Ljh6zJlwqxQ_DgEVnIk4';
-let supabase = null;
+let supabaseClient = null;
 let currentUser = null;
 let isSyncing = false;
 
@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize Supabase Client
   try {
     if (typeof window.supabase !== 'undefined') {
-      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     } else {
       console.warn('Supabase SDK not loaded.');
     }
@@ -89,8 +89,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Monitor Supabase Auth state
   try {
-    if (supabase) {
-      supabase.auth.onAuthStateChange((event, session) => {
+    if (supabaseClient) {
+      supabaseClient.auth.onAuthStateChange((event, session) => {
         if (session) {
           currentUser = session.user;
           updateAuthUI(true);
@@ -311,7 +311,7 @@ function saveCumulativeRelax() {
 // Debounce helper to prevent multiple rapid database requests
 let uploadTimeout = null;
 function triggerCloudUpload() {
-  if (!supabase || !currentUser) return;
+  if (!supabaseClient || !currentUser) return;
   
   if (uploadTimeout) clearTimeout(uploadTimeout);
   uploadTimeout = setTimeout(() => {
@@ -1341,12 +1341,12 @@ async function handleLogin(e) {
   const email = authEmailInput.value.trim();
   const password = authPasswordInput.value;
 
-  if (!supabase) return;
+  if (!supabaseClient) return;
 
   if (authErrorMsg) authErrorMsg.style.display = 'none';
   setAuthLoading(true);
 
-  const { data, error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabaseClient.auth.signInWithPassword({
     email,
     password
   });
@@ -1369,12 +1369,12 @@ async function handleSignup() {
     return;
   }
 
-  if (!supabase) return;
+  if (!supabaseClient) return;
 
   if (authErrorMsg) authErrorMsg.style.display = 'none';
   setAuthLoading(true);
 
-  const { data, error } = await supabase.auth.signUp({
+  const { data, error } = await supabaseClient.auth.signUp({
     email,
     password
   });
@@ -1392,10 +1392,10 @@ async function handleSignup() {
 }
 
 async function handleLogout() {
-  if (!supabase) return;
+  if (!supabaseClient) return;
   
   if (confirm('ログアウトしますか？ローカルのデータはそのまま残ります。')) {
-    await supabase.auth.signOut();
+    await supabaseClient.auth.signOut();
     closeAuthModal();
   }
 }
@@ -1415,14 +1415,14 @@ function showAuthError(msg) {
 
 // Sync data from Supabase Cloud
 async function syncDataFromCloud() {
-  if (!supabase || !currentUser || isSyncing) return;
+  if (!supabaseClient || !currentUser || isSyncing) return;
 
   isSyncing = true;
   const syncIcon = document.querySelector('.sync-icon');
   if (syncIcon) syncIcon.classList.add('syncing');
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('relaxdue_sync')
       .select('*')
       .eq('user_id', currentUser.id)
@@ -1488,7 +1488,7 @@ async function syncDataFromCloud() {
 
 // Upload current state to Supabase Cloud
 async function uploadDataToCloud(tasksData, relaxHoursData, completedCountData, cumulativeRelaxData) {
-  if (!supabase || !currentUser) return;
+  if (!supabaseClient || !currentUser) return;
 
   const payload = {
     user_id: currentUser.id,
@@ -1499,7 +1499,7 @@ async function uploadDataToCloud(tasksData, relaxHoursData, completedCountData, 
     updated_at: new Date().toISOString()
   };
 
-  const { error } = await supabase
+  const { error } = await supabaseClient
     .from('relaxdue_sync')
     .upsert(payload, { onConflict: 'user_id' });
 
