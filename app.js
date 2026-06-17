@@ -403,23 +403,23 @@ function renderTasks() {
 
     taskElement.innerHTML = `
       <div class="task-item-main" onclick="toggleExpandTask('${task.id}', event)" style="cursor: pointer;">
-        <div class="task-item-left">
-          <label class="checkbox-container">
+        <div class="task-item-left" style="display: flex; align-items: flex-start; gap: 1rem;">
+          <label class="checkbox-container" style="margin-top: 2px;">
             <input type="checkbox" ${hasSubtasks ? 'disabled' : `onchange="completeTask('${task.id}')"`} ${allSubtasksCompleted ? 'checked' : ''}>
             <span class="checkmark"></span>
-            <div class="task-content">
-              <span class="task-title">${escapeHTML(task.title)}</span>
-              <div class="task-meta">
-                ${task.isAiSplit ? '<span class="ai-badge">✨ AI分解</span>' : ''}
-                <span class="task-tag">${escapeHTML(task.subject)}</span>
-                <span class="task-estimated">🎁 ＋${task.estimatedHours}時間くつろぎ</span>
-                <span>📅 締切: ${deadlineFormatted}</span>
-              </div>
-            </div>
           </label>
+          <div class="task-content">
+            <span class="task-title">${escapeHTML(task.title)}</span>
+            <div class="task-meta">
+              ${task.isAiSplit ? '<span class="ai-badge">✨ AI分解</span>' : ''}
+              <span class="task-tag">${escapeHTML(task.subject)}</span>
+              <span class="task-estimated">🎁 ＋${task.estimatedHours}時間くつろぎ</span>
+              <span>📅 締切: ${deadlineFormatted}</span>
+            </div>
+          </div>
         </div>
         <div class="task-item-actions" style="display: flex; align-items: center; gap: 0.25rem;">
-          <button class="btn-toggle-expand" onclick="toggleExpandTask('${task.id}', event)" title="詳細を開閉">
+          <button class="btn-toggle-expand" type="button" title="詳細を開閉" style="pointer-events: none;">
             <svg class="arrow-icon ${isExpanded ? 'rotated' : ''}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" style="width: 16px; height: 16px;">
               <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
             </svg>
