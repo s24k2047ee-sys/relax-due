@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RelaxDue | 課題を終わらせて、気持ちよくくつろごう</title>
   <link rel="stylesheet" href="style.css">
+  <!-- Global Error Logger for Non-F12 Environments -->
+  <script>
+    window.onerror = function(message, source, lineno, colno, error) {
+      alert("JavaScriptエラーが発生しました:\n" + message + "\nファイル: " + source + "\n行番号: " + lineno + ":" + colno);
+      return false;
+    };
+  </script>
   <!-- Supabase JS SDK CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
