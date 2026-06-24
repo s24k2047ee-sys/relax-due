@@ -124,6 +124,27 @@
             <button type="button" class="btn-preset" data-minutes="60">1時間</button>
             <button type="button" class="btn-preset" data-minutes="120">2時間</button>
           </div>
+
+          <!-- Added in v5: Relax Category Selector -->
+          <div class="relax-category-section" style="margin: 1.5rem 0 1.25rem 0;">
+            <span style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 0.5rem; text-align: left;">休む内容を選択（ご褒美の使い道）：</span>
+            <div class="category-selector-grid">
+              <input type="radio" name="relax-category" id="cat-game" value="game" checked style="display: none;">
+              <label for="cat-game" class="category-item-btn">🎮 ゲーム</label>
+
+              <input type="radio" name="relax-category" id="cat-video" value="video" style="display: none;">
+              <label for="cat-video" class="category-item-btn">📺 動画/アニメ</label>
+
+              <input type="radio" name="relax-category" id="cat-sleep" value="sleep" style="display: none;">
+              <label for="cat-sleep" class="category-item-btn">🛌 睡眠/昼寝</label>
+
+              <input type="radio" name="relax-category" id="cat-book" value="book" style="display: none;">
+              <label for="cat-book" class="category-item-btn">☕ 読書/お茶</label>
+
+              <input type="radio" name="relax-category" id="cat-sns" value="sns" style="display: none;">
+              <label for="cat-sns" class="category-item-btn">💬 SNS/雑談</label>
+            </div>
+          </div>
           
           <!-- Control Buttons -->
           <div class="timer-controls">
@@ -132,27 +153,44 @@
         </div>
       </section>
 
-      <!-- Right Column: Task List -->
-      <section class="list-section tab-content active" id="tab-content-tasks">
-        <div class="list-card glass-card">
-          <div class="list-header">
-            <h2>⏳ 提出期限が迫っている課題</h2>
-            <span class="task-count" id="active-task-count">0</span>
-          </div>
+      <!-- Right Column: Task List & Logs (Desktop Wrapper) -->
+      <div class="right-column">
+        <!-- Task List Section -->
+        <section class="list-section tab-content active" id="tab-content-tasks">
+          <div class="list-card glass-card">
+            <div class="list-header">
+              <h2>⏳ 提出期限が迫っている課題</h2>
+              <span class="task-count" id="active-task-count">0</span>
+            </div>
 
-          <!-- Dynamic Task List -->
-          <div class="task-list" id="task-list-container">
-            <!-- Empty State (Placeholder) -->
-            <div class="empty-state" id="empty-state">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
-              </svg>
-              <p style="font-weight: 500; font-size: 1.1rem; color: var(--color-text-primary);">現在、迫っている課題はありません！</p>
-              <p style="font-size: 0.9rem; margin-top: 0.25rem;">素晴らしいですね。心置きなく、最高のくつろぎ時間を楽しんでください！</p>
+            <!-- Dynamic Task List -->
+            <div class="task-list" id="task-list-container">
+              <!-- Empty State (Placeholder) -->
+              <div class="empty-state" id="empty-state">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+                </svg>
+                <p style="font-weight: 500; font-size: 1.1rem; color: var(--color-text-primary);">現在、迫っている課題はありません！</p>
+                <p style="font-size: 0.9rem; margin-top: 0.25rem;">素晴らしいですね。心置きなく、最高のくつろぎ時間を楽しんでください！</p>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+
+        <!-- Relax Logs Section -->
+        <section class="logs-section tab-content" id="tab-content-logs">
+          <div class="logs-card glass-card">
+            <h2>📋 最近のくつろぎ履歴</h2>
+            <div class="logs-list" id="logs-list-container">
+              <!-- Dynamic Logs (Placeholder) -->
+              <div class="logs-empty-state" id="logs-empty-state">
+                <p style="font-weight: 500; font-size: 1rem; color: var(--color-text-primary);">まだ履歴がありません</p>
+                <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin-top: 0.25rem;">課題をクリアして、くつろぎ時間をチャージしましょう！</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
 
     </div>
   </div>
@@ -176,6 +214,12 @@
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
       <span>タイマー</span>
+    </button>
+    <button class="nav-item" data-tab="logs">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+      </svg>
+      <span>履歴</span>
     </button>
   </nav>
 

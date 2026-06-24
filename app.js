@@ -4,6 +4,8 @@ let totalRelaxHours = 0;
 // Added in v4: Cumulative Achievements State
 let totalCompletedTasks = 0;
 let cumulativeRelaxHours = 0;
+// Added in v5: Relax Logs State
+let relaxLogs = [];
 
 // Supabase Config & State
 const SUPABASE_URL = 'https://hbmantmeqtmrhggyabbp.supabase.co';
@@ -29,6 +31,8 @@ let taskListContainer, emptyState, activeTaskCountElement, totalRelaxTimeElement
 let timerCountdown, timerPresetButtons, timerToggleBtn, taskAiSplitInput;
 // Added in v4: Achievement DOM Elements
 let totalCompletedTasksElement, cumulativeRelaxTimeElement;
+// Added in v5: Logs DOM Elements
+let logsListContainer, logsEmptyState;
 
 // Default estimated hours multiplier / task helper
 const DEFAULT_ESTIMATED_RELAX_HOURS = 4;
@@ -52,6 +56,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Added in v4: Achievement DOM
   totalCompletedTasksElement = document.getElementById('total-completed-tasks');
   cumulativeRelaxTimeElement = document.getElementById('cumulative-relax-time');
+  // Added in v5: Logs DOM
+  logsListContainer = document.getElementById('logs-list-container');
+  logsEmptyState = document.getElementById('logs-empty-state');
 
   // Initialize Supabase Client
   try {
@@ -112,6 +119,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Added in v4: Load Cumulative Achievements
   const storedCompletedCount = localStorage.getItem('relaxdue_completed_count');
   const storedCumulativeRelax = localStorage.getItem('relaxdue_cumulative_relax');
+  // Added in v5: Load Logs
+  const storedLogs = localStorage.getItem('relaxdue_logs');
 
   if (storedTasks) {
     tasks = JSON.parse(storedTasks);
@@ -125,6 +134,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (storedCumulativeRelax) {
     cumulativeRelaxHours = parseFloat(storedCumulativeRelax);
   }
+  if (storedLogs) {
+    relaxLogs = JSON.parse(storedLogs);
+  }
 
   // Set default deadline to tomorrow same time
   const tomorrow = new Date();
@@ -137,6 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initial UI Render
   updateScoreboard();
   renderTasks();
+  renderRelaxLogs();
 
   // Added in v2: Restore Timer State
   const storedTimerActive = localStorage.getItem('relaxdue_timer_active');
@@ -287,36 +300,130 @@ async function handleFormSubmit(e) {
 }
 
 // Save to LocalStorage & Cloud (if logged in)
+function getSafeTimestamp(raw) {
+  if (!raw) return 0;
+  const parsed = parseInt(raw, 10);
+  if (!isNaN(parsed) && parsed > 100000000000) {
+    return parsed;
+  }
+  const dateParsed = Date.parse(raw);
+  if (!isNaN(dateParsed)) {
+    return dateParsed;
+  }
+  return 0;
+}
+
+function updateLocalTimestamp() {
+  const now = Date.now().toString();
+  localStorage.setItem('relaxdue_last_updated', now);
+  return now;
+}
+
 function saveTasks() {
   localStorage.setItem('relaxdue_tasks', JSON.stringify(tasks));
+  updateLocalTimestamp();
   triggerCloudUpload();
 }
 
 function saveRelaxHours() {
   localStorage.setItem('relaxdue_total_relax', totalRelaxHours.toString());
+  updateLocalTimestamp();
   triggerCloudUpload();
 }
 
 // Added in v4: Save Cumulative Achievements
 function saveCompletedCount() {
   localStorage.setItem('relaxdue_completed_count', totalCompletedTasks.toString());
+  updateLocalTimestamp();
   triggerCloudUpload();
 }
 
 function saveCumulativeRelax() {
   localStorage.setItem('relaxdue_cumulative_relax', cumulativeRelaxHours.toString());
+  updateLocalTimestamp();
   triggerCloudUpload();
 }
 
-// Debounce helper to prevent multiple rapid database requests
-let uploadTimeout = null;
+// Added in v5: Save Logs to LocalStorage
+function saveRelaxLogs() {
+  localStorage.setItem('relaxdue_logs', JSON.stringify(relaxLogs));
+  updateLocalTimestamp();
+  triggerCloudUpload();
+}
+
+// Added in v5: Add a new log entry
+function addRelaxLog(type, amount, description) {
+  const newLog = {
+    id: `log-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    type,
+    amount,
+    description,
+    timestamp: Date.now()
+  };
+
+  // Add to the beginning of the array
+  relaxLogs.unshift(newLog);
+
+  // Keep only the last 100 entries to prevent overflow
+  if (relaxLogs.length > 100) {
+    relaxLogs = relaxLogs.slice(0, 100);
+  }
+
+  saveRelaxLogs();
+  renderRelaxLogs();
+}
+
+// Added in v5: Render Relax Logs list
+function renderRelaxLogs() {
+  if (!logsListContainer) return;
+
+  // Clear previous logs except empty state
+  const logItems = logsListContainer.querySelectorAll('.log-item');
+  logItems.forEach(item => item.remove());
+
+  if (relaxLogs.length === 0) {
+    if (logsEmptyState) logsEmptyState.style.display = 'block';
+    return;
+  }
+
+  if (logsEmptyState) logsEmptyState.style.display = 'none';
+
+  relaxLogs.forEach(log => {
+    const logElement = document.createElement('div');
+    logElement.className = 'log-item';
+
+    const dateFormatted = new Date(log.timestamp).toLocaleString('ja-JP', {
+      month: 'numeric',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    const isCharge = log.type === 'charge';
+    const badgeClass = isCharge ? 'log-badge-charge' : 'log-badge-spend';
+    const sign = isCharge ? '＋' : 'ー';
+    const amountFormatted = Math.abs(log.amount);
+
+    logElement.innerHTML = `
+      <div class="log-item-left">
+        <span class="log-description">${escapeHTML(log.description)}</span>
+        <span class="log-date">${dateFormatted}</span>
+      </div>
+      <div class="log-badge ${badgeClass}">
+        <span>${sign}${amountFormatted}時間</span>
+      </div>
+    `;
+
+    logsListContainer.appendChild(logElement);
+  });
+}
+
+// Upload triggered immediately to ensure no data loss on page refresh
 function triggerCloudUpload() {
   if (!supabaseClient || !currentUser) return;
   
-  if (uploadTimeout) clearTimeout(uploadTimeout);
-  uploadTimeout = setTimeout(() => {
-    uploadDataToCloud(tasks, totalRelaxHours, totalCompletedTasks, cumulativeRelaxHours);
-  }, 1000);
+  // Debounce removed to prevent unsaved changes on immediate page reload
+  uploadDataToCloud(tasks, totalRelaxHours, totalCompletedTasks, cumulativeRelaxHours, relaxLogs);
 }
 
 // Update Scoreboard UI
@@ -597,6 +704,13 @@ window.completeTask = function(taskId) {
     totalCompletedTasks += 1;
     cumulativeRelaxHours += completedTask.estimatedHours;
 
+    // Added in v5: Record Log
+    if (rewardHours > 0) {
+      addRelaxLog('charge', rewardHours, `課題「${completedTask.title}」の完了`);
+    } else {
+      addRelaxLog('charge', 0, `課題「${completedTask.title}」の全ステップ完了`);
+    }
+
     tasks.splice(taskIndex, 1);
 
     // 6. Save and re-render
@@ -829,6 +943,19 @@ function startTimer() {
   totalRelaxHours -= costHours;
   saveRelaxHours();
   updateScoreboard();
+
+  // Added in v5: Get selected category and record premium logs
+  const selectedCatEl = document.querySelector('input[name="relax-category"]:checked');
+  const category = selectedCatEl ? selectedCatEl.value : 'game';
+  
+  let catIcon = '🎮';
+  let catText = 'ゲーム';
+  if (category === 'video') { catIcon = '📺'; catText = '動画/アニメ'; }
+  else if (category === 'sleep') { catIcon = '🛌'; catText = '睡眠/昼寝'; }
+  else if (category === 'book') { catIcon = '☕'; catText = '読書/お茶'; }
+  else if (category === 'sns') { catIcon = '💬'; catText = 'SNS/雑談'; }
+
+  addRelaxLog('spend', -costHours, `${catIcon} ${catText}でくつろぐ (${selectedTimerMinutes}分間)`);
 
   // 2. Set Timer State
   timerActive = true;
@@ -1121,6 +1248,9 @@ window.toggleSubtask = function(taskId, subtaskId) {
     saveRelaxHours();
     updateScoreboard();
 
+    // Added in v5: Record Log
+    addRelaxLog('charge', subtask.rewardHours, `サブタスク「${subtask.text}」の完了`);
+
     // 2. Play mini celebration sound (Web Audio API single high chime)
     playMiniChime();
 
@@ -1131,6 +1261,9 @@ window.toggleSubtask = function(taskId, subtaskId) {
     totalRelaxHours = Math.max(0, totalRelaxHours - subtask.rewardHours);
     saveRelaxHours();
     updateScoreboard();
+
+    // Added in v5: Record Log
+    addRelaxLog('spend', -subtask.rewardHours, `サブタスク「${subtask.text}」の完了取り消し`);
   }
 
   // Save changes
@@ -1241,6 +1374,9 @@ window.deleteSubtask = function(taskId, subtaskId) {
     totalRelaxHours = Math.max(0, totalRelaxHours - (parseFloat(subtask.rewardHours) || 0));
     saveRelaxHours();
     updateScoreboard();
+
+    // Added in v5: Record Log
+    addRelaxLog('spend', -(parseFloat(subtask.rewardHours) || 0), `完了済みサブタスク「${subtask.text}」の削除`);
   }
 
   // Deduct the reward from the parent task's total estimated hours
@@ -1436,47 +1572,87 @@ async function syncDataFromCloud() {
     const localRelaxHours = totalRelaxHours;
     const localCompletedCount = totalCompletedTasks;
     const localCumulativeRelax = cumulativeRelaxHours;
+    const localLogs = relaxLogs;
+
+    const localTimestampRaw = localStorage.getItem('relaxdue_last_updated');
+    const localTimestamp = getSafeTimestamp(localTimestampRaw);
 
     if (!data) {
       // First sync for this user: Upload local data to cloud
-      await uploadDataToCloud(localTasks, localRelaxHours, localCompletedCount, localCumulativeRelax);
+      if (localTimestamp === 0) {
+        updateLocalTimestamp();
+      }
+      await uploadDataToCloud(localTasks, localRelaxHours, localCompletedCount, localCumulativeRelax, localLogs);
     } else {
-      // Merge Cloud & Local data
-      const cloudTasks = data.tasks || [];
-      const cloudRelaxHours = parseFloat(data.total_relax_hours) || 0;
-      const cloudCompletedCount = parseInt(data.total_completed_tasks, 10) || 0;
-      const cloudCumulativeRelax = parseFloat(data.cumulative_relax_hours) || 0;
+      const cloudTimestamp = data.updated_at ? Date.parse(data.updated_at) : 0;
 
-      // Merge Tasks by Unique ID
-      const mergedTasks = [...cloudTasks];
-      localTasks.forEach(lt => {
-        if (!mergedTasks.some(ct => ct.id === lt.id)) {
-          mergedTasks.push(lt);
-        }
-      });
+      if (localTimestamp === 0) {
+        // Initial Sync (Merge to prevent data loss on first login)
+        const cloudTasks = data.tasks || [];
+        const cloudRelaxHours = parseFloat(data.total_relax_hours) || 0;
+        const cloudCompletedCount = parseInt(data.total_completed_tasks, 10) || 0;
+        const cloudCumulativeRelax = parseFloat(data.cumulative_relax_hours) || 0;
+        const cloudLogs = data.relax_logs || [];
 
-      // Keep maximum values for progress states
-      const finalRelaxHours = Math.max(localRelaxHours, cloudRelaxHours);
-      const finalCompletedCount = Math.max(localCompletedCount, cloudCompletedCount);
-      const finalCumulativeRelax = Math.max(localCumulativeRelax, cloudCumulativeRelax);
+        const mergedTasks = [...cloudTasks];
+        localTasks.forEach(lt => {
+          if (!mergedTasks.some(ct => ct.id === lt.id)) {
+            mergedTasks.push(lt);
+          }
+        });
 
-      // Save to local state
-      tasks = mergedTasks;
-      totalRelaxHours = finalRelaxHours;
-      totalCompletedTasks = finalCompletedCount;
-      cumulativeRelaxHours = finalCumulativeRelax;
+        // Merge logs by unique ID and sort by timestamp descending
+        const mergedLogs = [...cloudLogs];
+        localLogs.forEach(ll => {
+          if (!mergedLogs.some(cl => cl.id === ll.id)) {
+            mergedLogs.push(ll);
+          }
+        });
+        mergedLogs.sort((a, b) => b.timestamp - a.timestamp);
 
-      saveTasks();
-      saveRelaxHours();
-      saveCompletedCount();
-      saveCumulativeRelax();
+        const finalRelaxHours = Math.max(localRelaxHours, cloudRelaxHours);
+        const finalCompletedCount = Math.max(localCompletedCount, cloudCompletedCount);
+        const finalCumulativeRelax = Math.max(localCumulativeRelax, cloudCumulativeRelax);
 
-      // Refresh UI
-      updateScoreboard();
-      renderTasks();
+        tasks = mergedTasks;
+        totalRelaxHours = finalRelaxHours;
+        totalCompletedTasks = finalCompletedCount;
+        cumulativeRelaxHours = finalCumulativeRelax;
+        relaxLogs = mergedLogs;
 
-      // Update cloud to reflect merged state
-      await uploadDataToCloud(tasks, totalRelaxHours, totalCompletedTasks, cumulativeRelaxHours);
+        saveTasks();
+        saveRelaxHours();
+        saveCompletedCount();
+        saveCumulativeRelax();
+        saveRelaxLogs();
+
+        updateScoreboard();
+        renderTasks();
+        renderRelaxLogs();
+
+        await uploadDataToCloud(tasks, totalRelaxHours, totalCompletedTasks, cumulativeRelaxHours, relaxLogs);
+      } else if (localTimestamp > cloudTimestamp) {
+        // Local is newer: Upload to cloud
+        await uploadDataToCloud(localTasks, localRelaxHours, localCompletedCount, localCumulativeRelax, localLogs);
+      } else if (cloudTimestamp > localTimestamp) {
+        // Cloud is newer: Overwrite local completely (No merging)
+        tasks = data.tasks || [];
+        totalRelaxHours = parseFloat(data.total_relax_hours) || 0;
+        totalCompletedTasks = parseInt(data.total_completed_tasks, 10) || 0;
+        cumulativeRelaxHours = parseFloat(data.cumulative_relax_hours) || 0;
+        relaxLogs = data.relax_logs || [];
+
+        localStorage.setItem('relaxdue_tasks', JSON.stringify(tasks));
+        localStorage.setItem('relaxdue_total_relax', totalRelaxHours.toString());
+        localStorage.setItem('relaxdue_completed_count', totalCompletedTasks.toString());
+        localStorage.setItem('relaxdue_cumulative_relax', cumulativeRelaxHours.toString());
+        localStorage.setItem('relaxdue_logs', JSON.stringify(relaxLogs));
+        localStorage.setItem('relaxdue_last_updated', cloudTimestamp.toString());
+
+        updateScoreboard();
+        renderTasks();
+        renderRelaxLogs();
+      }
     }
   } catch (err) {
     console.error('クラウド同期中にエラーが発生しました:', err);
@@ -1487,8 +1663,12 @@ async function syncDataFromCloud() {
 }
 
 // Upload current state to Supabase Cloud
-async function uploadDataToCloud(tasksData, relaxHoursData, completedCountData, cumulativeRelaxData) {
+async function uploadDataToCloud(tasksData, relaxHoursData, completedCountData, cumulativeRelaxData, relaxLogsData) {
   if (!supabaseClient || !currentUser) return;
+
+  const localTimestampRaw = localStorage.getItem('relaxdue_last_updated');
+  const localTimestampMs = getSafeTimestamp(localTimestampRaw) || Date.now();
+  const updatedAtISO = new Date(localTimestampMs).toISOString();
 
   const payload = {
     user_id: currentUser.id,
@@ -1496,7 +1676,8 @@ async function uploadDataToCloud(tasksData, relaxHoursData, completedCountData, 
     total_relax_hours: relaxHoursData,
     total_completed_tasks: completedCountData,
     cumulative_relax_hours: cumulativeRelaxData,
-    updated_at: new Date().toISOString()
+    relax_logs: relaxLogsData || [],
+    updated_at: updatedAtISO
   };
 
   const { error } = await supabaseClient
