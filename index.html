@@ -14,6 +14,9 @@
   </script>
   <!-- Supabase JS SDK CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Google API SDKs for Calendar Sync (v5.1) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://apis.google.com/js/api.js" async defer></script>
 </head>
 <body>
   <div class="container">
@@ -29,6 +32,11 @@
         <button id="btn-cloud-sync" class="score-card glass-card btn-cloud-sync" style="cursor: pointer; display: flex; flex-direction: row; align-items: center; gap: 8px; font-weight: 600; font-size: 0.9rem; padding: 0.5rem 1rem;">
           <span class="sync-icon" style="font-size: 1.2rem;">☁️</span>
           <span id="sync-status-text" style="color: var(--color-text-secondary);">ログインして同期</span>
+        </button>
+        <!-- Google Calendar Sync Button (v5.1) -->
+        <button id="btn-calendar-sync" class="score-card glass-card btn-calendar-sync" style="cursor: pointer; display: flex; flex-direction: row; align-items: center; gap: 8px; font-weight: 600; font-size: 0.9rem; padding: 0.5rem 1rem;">
+          <span class="calendar-icon" style="font-size: 1.2rem;">📅</span>
+          <span id="calendar-status-text" style="color: var(--color-text-secondary);">カレンダー連携</span>
         </button>
         <!-- Stocked Relax Time -->
         <div class="score-card glass-card">
@@ -59,8 +67,10 @@
       <!-- Left Column: Add Task Form & Relax Timer -->
       <section class="form-section">
         <div class="form-card glass-card tab-content" id="tab-content-add">
-          <h2>📝 新しい課題を登録</h2>
+          <h2 id="form-title">📝 新しい課題を登録</h2>
           <form id="add-task-form">
+            <!-- Hidden input for edit mode (v5.1) -->
+            <input type="hidden" id="edit-task-id">
             <!-- Task Title -->
             <div class="form-group">
               <label for="task-title">課題名</label>
@@ -103,7 +113,7 @@
             </div>
 
             <!-- Submit Button -->
-            <button type="submit" class="btn-primary">課題を追加する</button>
+            <button type="submit" class="btn-primary" id="btn-task-submit">課題を追加する</button>
           </form>
         </div>
 
@@ -266,6 +276,46 @@
         <div class="auth-buttons" style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem;">
           <button type="submit" id="btn-login-submit" class="btn-primary">ログイン</button>
           <button type="button" id="btn-signup-submit" class="btn-preset" style="width: 100%; border-radius: 12px; padding: 0.8rem; border-color: rgba(168, 85, 247, 0.3); color: #a855f7;">新規アカウント登録</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Google Calendar Connection Modal (v5.1) -->
+  <div id="calendar-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-card glass-card">
+      <button class="btn-modal-close" id="btn-calendar-close" title="閉じる">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" style="width: 20px; height: 20px;">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+      
+      <div class="modal-header" style="text-align: center; margin-bottom: 1.5rem;">
+        <span style="font-size: 2.5rem; display: block; margin-bottom: 0.5rem;">📅</span>
+        <h2 style="font-size: 1.4rem; font-weight: 700;">Google カレンダー連携</h2>
+        <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin-top: 0.25rem;">課題の追加・変更をカレンダーに自動反映します</p>
+      </div>
+      
+      <!-- Setup Form -->
+      <form id="calendar-config-form" style="display: block;">
+        <div class="form-group">
+          <label for="cal-client-id">Google OAuth クライアント ID</label>
+          <input type="text" id="cal-client-id" class="form-control" placeholder="xxxxxx-xxxxxx.apps.googleusercontent.com" required autocomplete="off">
+        </div>
+        <div class="form-group" style="margin-top: 1rem;">
+          <label for="cal-api-key">Google Calendar API キー</label>
+          <input type="password" id="cal-api-key" class="form-control" placeholder="AIzaSy..." required autocomplete="off">
+        </div>
+        
+        <div id="calendar-auth-status" style="margin-top: 1.5rem; text-align: center; display: none;">
+          <p style="font-size: 0.9rem; color: var(--color-text-secondary);">接続アカウント:</p>
+          <p id="calendar-user-email" style="font-weight: 600; font-size: 1.05rem; color: #10b981; margin-top: 0.25rem; word-break: break-all;">未接続</p>
+        </div>
+
+        <div class="calendar-buttons" style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem;">
+          <button type="button" id="btn-calendar-connect" class="btn-primary" style="background: var(--gradient-relax); box-shadow: 0 4px 15px rgba(8, 145, 178, 0.2);">Googleアカウントと接続</button>
+          <button type="submit" id="btn-calendar-save" class="btn-primary">設定を保存</button>
+          <button type="button" id="btn-calendar-disconnect" class="btn-preset" style="width: 100%; border-radius: 12px; padding: 0.8rem; border-color: rgba(239, 68, 68, 0.3); color: #ef4444; display: none;">連携を解除</button>
         </div>
       </form>
     </div>

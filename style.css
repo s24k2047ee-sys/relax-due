@@ -1559,6 +1559,201 @@ input[name="relax-category"][value="sleep"]:checked + .category-item-btn {
 
 input[name="relax-category"][value="book"]:checked + .category-item-btn {
   background: rgba(8, 145, 178, 0.08);
+/* スマホ表示時のクラウド同期ボタンの最適化 */
+@media (max-width: 768px) {
+  .btn-cloud-sync {
+    flex: 0 0 42px !important;
+    height: 42px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+    align-items: center !important;
+    border-radius: 12px !important; /* 他のカードと形状をあわせる */
+  }
+
+  .btn-cloud-sync #sync-status-text {
+    display: none !important; /* スマホではテキスト非表示 */
+  }
+  
+  .btn-cloud-sync .sync-icon {
+    margin: 0 !important;
+    font-size: 1.3rem !important;
+  }
+}
+
+/* ==========================================
+   Relax Logs Styles (Added in v5)
+   ========================================== */
+.logs-card {
+  padding: 2rem;
+  margin-top: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.logs-card h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.logs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 350px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.log-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem 1rem;
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  transition: var(--transition-smooth);
+  animation: slideIn 0.3s ease-out forwards;
+}
+
+.log-item:hover {
+  background: rgba(255, 255, 255, 0.7);
+  transform: translateX(2px);
+}
+
+.log-item-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.log-description {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.log-date {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.log-badge {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0.3rem 0.75rem;
+  border-radius: 20px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.log-badge-charge {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.log-badge-spend {
+  background: rgba(6, 182, 212, 0.12);
+  color: #06b6d4;
+  border: 1px solid rgba(6, 182, 212, 0.2);
+}
+
+.logs-empty-state {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--color-text-secondary);
+}
+
+.logs-empty-state p {
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+/* Mobile responsive adjustments for logs */
+@media (max-width: 768px) {
+  .logs-card {
+    padding: 1.25rem;
+    margin-top: 0; /* Mobile uses tabs, no top margin needed */
+  }
+
+  .log-item {
+    padding: 0.7rem 0.8rem;
+  }
+
+  .log-description {
+    font-size: 0.85rem;
+  }
+}
+
+/* ==========================================
+   Relax Category Selector Styles (v5)
+   ========================================== */
+.relax-category-section {
+  text-align: left;
+}
+
+.category-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.category-item-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.25rem;
+  background: rgba(15, 23, 42, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  user-select: none;
+}
+
+.category-item-btn:hover {
+  background: rgba(15, 23, 42, 0.06);
+  border-color: var(--color-text-primary);
+}
+
+/* Radio button state styles with custom brand colors */
+input[name="relax-category"][value="game"]:checked + .category-item-btn {
+  background: rgba(79, 70, 229, 0.08);
+  border-color: #4f46e5;
+  color: #4f46e5;
+  box-shadow: 0 0 10px rgba(79, 70, 229, 0.15);
+}
+
+input[name="relax-category"][value="video"]:checked + .category-item-btn {
+  background: rgba(219, 39, 119, 0.08);
+  border-color: #db2777;
+  color: #db2777;
+  box-shadow: 0 0 10px rgba(219, 39, 119, 0.15);
+}
+
+input[name="relax-category"][value="sleep"]:checked + .category-item-btn {
+  background: rgba(147, 51, 234, 0.08);
+  border-color: #9333ea;
+  color: #9333ea;
+  box-shadow: 0 0 10px rgba(93, 51, 234, 0.15);
+}
+
+input[name="relax-category"][value="book"]:checked + .category-item-btn {
+  background: rgba(8, 145, 178, 0.08);
   border-color: #0891b2;
   color: #0891b2;
   box-shadow: 0 0 10px rgba(8, 145, 178, 0.15);
@@ -1569,4 +1764,69 @@ input[name="relax-category"][value="sns"]:checked + .category-item-btn {
   border-color: #10b981;
   color: #10b981;
   box-shadow: 0 0 10px rgba(16, 185, 129, 0.15);
+}
+
+/* ==========================================
+   Google Calendar Sync & Task Edit Styles (v5.1)
+   ========================================== */
+.btn-calendar-sync {
+  transition: var(--transition-bounce) !important;
+}
+
+.btn-calendar-sync:hover {
+  border-color: #0891b2 !important;
+  box-shadow: 0 0 15px rgba(8, 145, 178, 0.15) !important;
+  transform: translateY(-2px);
+}
+
+.btn-calendar-sync:active {
+  transform: translateY(0);
+}
+
+/* Edit Button in Task Card */
+.btn-edit {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 6px;
+  transition: var(--transition-smooth);
+}
+
+.btn-edit:hover {
+  color: #a855f7;
+  background: rgba(168, 85, 247, 0.1);
+}
+
+/* Form Editing Mode Visual Indicator */
+.form-card.editing-mode {
+  border-color: #a855f7;
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.15);
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.form-card.editing-mode h2 {
+  color: #a855f7;
+}
+
+/* Mobile responsive adjustments for calendar sync button */
+@media (max-width: 768px) {
+  .btn-calendar-sync {
+    flex: 0 0 42px !important;
+    height: 42px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+    align-items: center !important;
+    border-radius: 12px !important;
+  }
+
+  .btn-calendar-sync #calendar-status-text {
+    display: none !important;
+  }
+
+  .btn-calendar-sync .calendar-icon {
+    margin: 0 !important;
+    font-size: 1.3rem !important;
+  }
 }

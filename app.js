@@ -18,6 +18,13 @@ let isSyncing = false;
 let authModal, btnCloudSync, btnAuthClose, authForm, authEmailInput, authPasswordInput, authErrorMsg;
 let btnLoginSubmit, btnSignupSubmit, btnLogout, authProfileSection, authUserEmail, syncStatusText;
 
+// Google Calendar DOM & Auth State (v5.1)
+let calendarModal, btnCalendarSync, btnCalendarClose, calendarConfigForm, calClientIdInput, calApiKeyInput;
+let calendarAuthStatus, calendarUserEmail, btnCalendarConnect, btnCalendarSave, btnCalendarDisconnect;
+let googleTokenClient = null;
+let gapiInitialized = false;
+let gisInitialized = false;
+
 // Added in v2: Timer State
 let timerInterval = null;
 let timerActive = false;
@@ -87,12 +94,36 @@ document.addEventListener('DOMContentLoaded', () => {
   authUserEmail = document.getElementById('auth-user-email');
   syncStatusText = document.getElementById('sync-status-text');
 
+  // Google Calendar DOM Elements (v5.1)
+  calendarModal = document.getElementById('calendar-modal');
+  btnCalendarSync = document.getElementById('btn-calendar-sync');
+  btnCalendarClose = document.getElementById('btn-calendar-close');
+  calendarConfigForm = document.getElementById('calendar-config-form');
+  calClientIdInput = document.getElementById('cal-client-id');
+  calApiKeyInput = document.getElementById('cal-api-key');
+  calendarAuthStatus = document.getElementById('calendar-auth-status');
+  calendarUserEmail = document.getElementById('calendar-user-email');
+  btnCalendarConnect = document.getElementById('btn-calendar-connect');
+  btnCalendarSave = document.getElementById('btn-calendar-save');
+  btnCalendarDisconnect = document.getElementById('btn-calendar-disconnect');
+
   // Setup Auth Listeners
   if (btnCloudSync) btnCloudSync.addEventListener('click', openAuthModal);
   if (btnAuthClose) btnAuthClose.addEventListener('click', closeAuthModal);
   if (authForm) authForm.addEventListener('submit', handleLogin);
   if (btnSignupSubmit) btnSignupSubmit.addEventListener('click', handleSignup);
   if (btnLogout) btnLogout.addEventListener('click', handleLogout);
+
+  // Setup Google Calendar Listeners (v5.1)
+  if (btnCalendarSync) btnCalendarSync.addEventListener('click', () => {
+    if (calendarModal) calendarModal.style.display = 'flex';
+  });
+  if (btnCalendarClose) btnCalendarClose.addEventListener('click', () => {
+    if (calendarModal) calendarModal.style.display = 'none';
+  });
+  if (calendarConfigForm) calendarConfigForm.addEventListener('submit', handleCalendarSave);
+  if (btnCalendarConnect) btnCalendarConnect.addEventListener('click', handleCalendarConnect);
+  if (btnCalendarDisconnect) btnCalendarDisconnect.addEventListener('click', handleCalendarDisconnect);
 
   // Monitor Supabase Auth state
   try {
@@ -192,6 +223,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Setup Mobile Tab Navigation
   initMobileTabNavigation();
+
+  // Load Calendar Config (v5.1)
+  loadCalendarConfig();
 });
 
 // Setup Mobile Tab Navigation Event Listeners
@@ -238,40 +272,90 @@ async function handleFormSubmit(e) {
   const relaxHours = parseFloat(taskRelaxHoursInput.value) || DEFAULT_ESTIMATED_RELAX_HOURS;
   const useAiSplit = taskAiSplitInput ? taskAiSplitInput.checked : false;
 
+  const editIdInput = document.getElementById('edit-task-id');
+  const editTaskId = editIdInput ? editIdInput.value : '';
+
   if (!title || !subject || !deadlineStr) return;
 
   // Disable submit button during processing
   const submitBtn = taskForm.querySelector('button[type="submit"]');
   if (submitBtn) submitBtn.disabled = true;
 
-  let subtasks = [];
+  if (editTaskId) {
+    // EDIT MODE (v5.1)
+    const taskIndex = tasks.findIndex(t => t.id === editTaskId);
+    if (taskIndex !== -1) {
+      const task = tasks[taskIndex];
+      task.title = title;
+      task.subject = subject;
+      task.deadline = new Date(deadlineStr).toISOString();
+      
+      const oldEstimatedHours = task.estimatedHours;
+      task.estimatedHours = relaxHours;
+      
+      // Re-allocate subtask rewards if overall hours changed
+      if (task.subtasks && task.subtasks.length > 0 && oldEstimatedHours !== relaxHours) {
+        const rewardPerSubtask = relaxHours / task.subtasks.length;
+        task.subtasks.forEach(st => {
+          st.rewardHours = rewardPerSubtask;
+        });
+      }
+      
+      saveTasks();
+      renderTasks();
+      
+      // Sync update to Google Calendar if enabled and event ID exists
+      if (calendarConfig.enabled && task.googleEventId) {
+        await syncTaskToGoogle(task);
+      }
+      
+      // Reset Edit Mode UI
+      if (editIdInput) editIdInput.value = '';
+      const formCard = document.querySelector('.form-card');
+      if (formCard) formCard.classList.remove('editing-mode');
+      
+      const formTitle = document.getElementById('form-title');
+      if (formTitle) formTitle.textContent = '📝 新しい課題を登録';
+      
+      if (submitBtn) submitBtn.textContent = '課題を追加する';
+    }
+  } else {
+    // ADD MODE (Original Logic)
+    let subtasks = [];
 
-  if (useAiSplit) {
-    // Show AI Thinking loader in the task list
-    showAiThinkingLoader(title);
+    if (useAiSplit) {
+      // Show AI Thinking loader in the task list
+      showAiThinkingLoader(title);
+      
+      // Simulate AI thinking delay (1.8 seconds)
+      await new Promise(resolve => setTimeout(resolve, 1800));
+      
+      // Generate subtasks using the rule-based AI engine
+      subtasks = generateAiSubtasks(title, subject, relaxHours);
+    }
+
+    const newTask = {
+      id: Date.now().toString(),
+      title,
+      subject,
+      deadline: new Date(deadlineStr).toISOString(),
+      estimatedHours: relaxHours,
+      createdAt: Date.now(),
+      subtasks: subtasks,
+      isAiSplit: useAiSplit,
+      expanded: false,
+      googleEventId: null
+    };
+
+    tasks.push(newTask);
+    saveTasks();
+    renderTasks();
     
-    // Simulate AI thinking delay (1.8 seconds)
-    await new Promise(resolve => setTimeout(resolve, 1800));
-    
-    // Generate subtasks using the rule-based AI engine
-    subtasks = generateAiSubtasks(title, subject, relaxHours);
+    // Auto sync to Google Calendar if enabled
+    if (calendarConfig.enabled) {
+      await syncTaskToGoogle(newTask);
+    }
   }
-
-  const newTask = {
-    id: Date.now().toString(),
-    title,
-    subject,
-    deadline: new Date(deadlineStr).toISOString(),
-    estimatedHours: relaxHours,
-    createdAt: Date.now(),
-    subtasks: subtasks,
-    isAiSplit: useAiSplit,
-    expanded: false
-  };
-
-  tasks.push(newTask);
-  saveTasks();
-  renderTasks();
 
   // Reset form except defaults
   taskTitleInput.value = '';
@@ -293,7 +377,7 @@ async function handleFormSubmit(e) {
   // Animate focus out
   document.activeElement.blur();
 
-  // If on mobile view, switch back to task list tab after adding a task
+  // If on mobile view, switch back to task list tab after adding/editing a task
   if (window.innerWidth <= 768) {
     switchTab('tasks');
   }
@@ -610,6 +694,11 @@ function renderTasks() {
               <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
             </svg>
           </button>
+          <button class="btn-edit" onclick="editTask('${task.id}')" title="編集">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" style="width: 18px; height: 18px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+            </svg>
+          </button>
           <button class="btn-delete" onclick="deleteTask('${task.id}')" title="削除">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" style="width: 18px; height: 18px;">
               <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
@@ -711,6 +800,11 @@ window.completeTask = function(taskId) {
       addRelaxLog('charge', 0, `課題「${completedTask.title}」の全ステップ完了`);
     }
 
+    // Delete from Google Calendar if sync event exists
+    if (completedTask.googleEventId) {
+      deleteTaskFromGoogle(completedTask.googleEventId);
+    }
+
     tasks.splice(taskIndex, 1);
 
     // 6. Save and re-render
@@ -733,7 +827,14 @@ window.deleteTask = function(taskId) {
     taskElement.classList.add('fade-out');
   }
 
+  const deletedTask = tasks[taskIndex];
+
   setTimeout(() => {
+    // Delete from Google Calendar if sync event exists
+    if (deletedTask.googleEventId) {
+      deleteTaskFromGoogle(deletedTask.googleEventId);
+    }
+
     tasks.splice(taskIndex, 1);
     saveTasks();
     renderTasks();
@@ -1620,6 +1721,17 @@ async function syncDataFromCloud() {
         cumulativeRelaxHours = finalCumulativeRelax;
         relaxLogs = mergedLogs;
 
+        // Sync calendar settings if present in cloud (v5.1)
+        if (data.calendar_client_id && data.calendar_api_key) {
+          localStorage.setItem('relaxdue_cal_client_id', data.calendar_client_id);
+          localStorage.setItem('relaxdue_cal_api_key', data.calendar_api_key);
+          localStorage.setItem('relaxdue_cal_enabled', data.calendar_enabled ? 'true' : 'false');
+          if (data.calendar_user_email) {
+            localStorage.setItem('relaxdue_cal_user_email', data.calendar_user_email);
+          }
+          await loadCalendarConfig();
+        }
+
         saveTasks();
         saveRelaxHours();
         saveCompletedCount();
@@ -1649,6 +1761,17 @@ async function syncDataFromCloud() {
         localStorage.setItem('relaxdue_logs', JSON.stringify(relaxLogs));
         localStorage.setItem('relaxdue_last_updated', cloudTimestamp.toString());
 
+        // Sync calendar settings if present in cloud (v5.1)
+        if (data.calendar_client_id && data.calendar_api_key) {
+          localStorage.setItem('relaxdue_cal_client_id', data.calendar_client_id);
+          localStorage.setItem('relaxdue_cal_api_key', data.calendar_api_key);
+          localStorage.setItem('relaxdue_cal_enabled', data.calendar_enabled ? 'true' : 'false');
+          if (data.calendar_user_email) {
+            localStorage.setItem('relaxdue_cal_user_email', data.calendar_user_email);
+          }
+          await loadCalendarConfig();
+        }
+
         updateScoreboard();
         renderTasks();
         renderRelaxLogs();
@@ -1670,22 +1793,450 @@ async function uploadDataToCloud(tasksData, relaxHoursData, completedCountData, 
   const localTimestampMs = getSafeTimestamp(localTimestampRaw) || Date.now();
   const updatedAtISO = new Date(localTimestampMs).toISOString();
 
-  const payload = {
+  // Get encrypted calendar settings (v5.1)
+  const encryptedClientId = localStorage.getItem('relaxdue_cal_client_id') || null;
+  const encryptedApiKey = localStorage.getItem('relaxdue_cal_api_key') || null;
+  const calEnabled = localStorage.getItem('relaxdue_cal_enabled') === 'true';
+  const calUserEmail = localStorage.getItem('relaxdue_cal_user_email') || null;
+
+  const payloadFull = {
     user_id: currentUser.id,
     tasks: tasksData,
     total_relax_hours: relaxHoursData,
     total_completed_tasks: completedCountData,
     cumulative_relax_hours: cumulativeRelaxData,
     relax_logs: relaxLogsData || [],
+    calendar_client_id: encryptedClientId,
+    calendar_api_key: encryptedApiKey,
+    calendar_enabled: calEnabled,
+    calendar_user_email: calUserEmail,
     updated_at: updatedAtISO
   };
 
   const { error } = await supabaseClient
     .from('relaxdue_sync')
-    .upsert(payload, { onConflict: 'user_id' });
+    .upsert(payloadFull, { onConflict: 'user_id' });
 
   if (error) {
-    console.error('クラウドへのアップロードに失敗しました:', error);
+    // Schema fallback if calendar columns don't exist on remote Supabase table
+    if (error.code === '42703' || error.message.includes('column') || error.message.includes('does not exist')) {
+      console.warn('Supabase schema does not support calendar columns. Falling back to basic sync.');
+      const payloadBasic = {
+        user_id: currentUser.id,
+        tasks: tasksData,
+        total_relax_hours: relaxHoursData,
+        total_completed_tasks: completedCountData,
+        cumulative_relax_hours: cumulativeRelaxData,
+        relax_logs: relaxLogsData || [],
+        updated_at: updatedAtISO
+      };
+      const { error: fallbackError } = await supabaseClient
+        .from('relaxdue_sync')
+        .upsert(payloadBasic, { onConflict: 'user_id' });
+      
+      if (fallbackError) {
+        console.error('Cloud upload failed even with fallback:', fallbackError);
+      }
+    } else {
+      console.error('クラウドへのアップロードに失敗しました:', error);
+    }
   }
 }
+
+/* ==========================================
+   Task Editing, Encryption & Google Calendar Sync (v5.1)
+   ========================================== */
+
+// Encryption/Decryption Helpers using standard Web Crypto API (AES-GCM)
+const CRYPTO_SALT = 'RelaxDue_Secure_Salt_v5.1';
+
+async function getCryptoKey() {
+  const seed = currentUser ? currentUser.id : 'RelaxDue_Local_Fallback_Seed';
+  const encoder = new TextEncoder();
+  const keyMaterial = await window.crypto.subtle.importKey(
+    'raw',
+    encoder.encode(seed + CRYPTO_SALT),
+    { name: 'PBKDF2' },
+    false,
+    ['deriveBits', 'deriveKey']
+  );
+  return window.crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: encoder.encode(CRYPTO_SALT),
+      iterations: 100000,
+      hash: 'SHA-256'
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+async function encryptData(text) {
+  try {
+    if (!text) return '';
+    const key = await getCryptoKey();
+    const encoder = new TextEncoder();
+    const encodedText = encoder.encode(text);
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const encrypted = await window.crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv: iv },
+      key,
+      encodedText
+    );
+    
+    const combined = new Uint8Array(iv.length + encrypted.byteLength);
+    combined.set(iv, 0);
+    combined.set(new Uint8Array(encrypted), iv.length);
+    
+    return btoa(String.fromCharCode.apply(null, combined));
+  } catch (err) {
+    console.error('Encryption failed:', err);
+    return '';
+  }
+}
+
+async function decryptData(encryptedBase64) {
+  try {
+    if (!encryptedBase64) return '';
+    const key = await getCryptoKey();
+    const combined = new Uint8Array(
+      atob(encryptedBase64)
+        .split('')
+        .map(c => c.charCodeAt(0))
+    );
+    
+    const iv = combined.slice(0, 12);
+    const encrypted = combined.slice(12);
+    
+    const decrypted = await window.crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: iv },
+      key,
+      encrypted
+    );
+    
+    const decoder = new TextDecoder();
+    return decoder.decode(decrypted);
+  } catch (err) {
+    console.error('Decryption failed:', err);
+    return '';
+  }
+}
+
+// Google Calendar API Config State
+let calendarConfig = {
+  clientId: '',
+  apiKey: '',
+  accessToken: '',
+  userEmail: '',
+  enabled: false
+};
+
+// Load calendar config from LocalStorage
+async function loadCalendarConfig() {
+  const encryptedClientId = localStorage.getItem('relaxdue_cal_client_id');
+  const encryptedApiKey = localStorage.getItem('relaxdue_cal_api_key');
+  const calEnabled = localStorage.getItem('relaxdue_cal_enabled') === 'true';
+  const calUserEmail = localStorage.getItem('relaxdue_cal_user_email') || '';
+  
+  if (encryptedClientId && encryptedApiKey) {
+    calendarConfig.clientId = await decryptData(encryptedClientId);
+    calendarConfig.apiKey = await decryptData(encryptedApiKey);
+    calendarConfig.enabled = calEnabled;
+    calendarConfig.userEmail = calUserEmail;
+    
+    if (calClientIdInput) calClientIdInput.value = calendarConfig.clientId;
+    if (calApiKeyInput) calApiKeyInput.value = calendarConfig.apiKey;
+    
+    if (calendarConfig.enabled) {
+      updateCalendarUI(true);
+      const savedToken = localStorage.getItem('relaxdue_cal_token');
+      if (savedToken) {
+        calendarConfig.accessToken = await decryptData(savedToken);
+      }
+      initGoogleAuth();
+    }
+  }
+}
+
+// Initialize Google SDKs
+function initGoogleAuth() {
+  if (!calendarConfig.clientId || !calendarConfig.apiKey) return;
+  
+  if (!gapiInitialized) {
+    try {
+      gapi.load('client', async () => {
+        try {
+          await gapi.client.init({
+            apiKey: calendarConfig.apiKey,
+            discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
+          });
+          gapiInitialized = true;
+          console.log('GAPI client initialized.');
+          
+          if (calendarConfig.accessToken) {
+            gapi.client.setToken({ access_token: calendarConfig.accessToken });
+            verifyCalendarConnection();
+          }
+        } catch (err) {
+          console.error('Error initializing GAPI client:', err);
+        }
+      });
+    } catch (err) {
+      console.error('Failed to load GAPI:', err);
+    }
+  }
+
+  if (!gisInitialized) {
+    try {
+      googleTokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: calendarConfig.clientId,
+        scope: 'https://www.googleapis.com/auth/calendar.events',
+        callback: async (tokenResponse) => {
+          if (tokenResponse.error !== undefined) {
+            throw tokenResponse;
+          }
+          
+          calendarConfig.accessToken = tokenResponse.access_token;
+          const encryptedToken = await encryptData(tokenResponse.access_token);
+          localStorage.setItem('relaxdue_cal_token', encryptedToken);
+          
+          gapi.client.setToken({ access_token: tokenResponse.access_token });
+          calendarConfig.enabled = true;
+          localStorage.setItem('relaxdue_cal_enabled', 'true');
+          
+          await verifyCalendarConnection();
+          syncAllTasksToGoogle();
+        },
+      });
+      gisInitialized = true;
+      console.log('GIS token client initialized.');
+    } catch (err) {
+      console.error('Failed to initialize GIS:', err);
+    }
+  }
+}
+
+async function verifyCalendarConnection() {
+  try {
+    const response = await gapi.client.calendar.calendars.get({
+      calendarId: 'primary'
+    });
+    
+    calendarConfig.userEmail = response.result.summary || '接続済み';
+    localStorage.setItem('relaxdue_cal_user_email', calendarConfig.userEmail);
+    
+    updateCalendarUI(true);
+    triggerCloudUpload();
+  } catch (err) {
+    console.error('Failed to verify calendar connection:', err);
+    if (err.status === 401) {
+      handleCalendarDisconnect();
+    }
+  }
+}
+
+async function handleCalendarSave(e) {
+  e.preventDefault();
+  
+  const clientId = calClientIdInput.value.trim();
+  const apiKey = calApiKeyInput.value.trim();
+  
+  if (!clientId || !apiKey) return;
+  
+  calendarConfig.clientId = clientId;
+  calendarConfig.apiKey = apiKey;
+  
+  const encryptedClientId = await encryptData(clientId);
+  const encryptedApiKey = await encryptData(apiKey);
+  
+  localStorage.setItem('relaxdue_cal_client_id', encryptedClientId);
+  localStorage.setItem('relaxdue_cal_api_key', encryptedApiKey);
+  
+  gapiInitialized = false;
+  gisInitialized = false;
+  
+  initGoogleAuth();
+  
+  alert('Google Calendar の認証情報を保存しました。「Googleアカウントと接続」ボタンを押して認証を完了してください。');
+}
+
+function handleCalendarConnect() {
+  if (!gisInitialized) {
+    initGoogleAuth();
+  }
+  
+  if (googleTokenClient) {
+    googleTokenClient.requestAccessToken({ prompt: 'consent' });
+  } else {
+    alert('Google API の初期化が完了していません。クライアントIDとAPIキーが正しいか確認してください。');
+  }
+}
+
+function handleCalendarDisconnect() {
+  calendarConfig.accessToken = '';
+  calendarConfig.userEmail = '';
+  calendarConfig.enabled = false;
+  
+  localStorage.removeItem('relaxdue_cal_token');
+  localStorage.removeItem('relaxdue_cal_enabled');
+  localStorage.removeItem('relaxdue_cal_user_email');
+  
+  updateCalendarUI(false);
+  triggerCloudUpload();
+  
+  alert('Google カレンダーとの連携を解除しました。');
+}
+
+function updateCalendarUI(connected) {
+  if (connected) {
+    if (calendarStatusText) {
+      calendarStatusText.textContent = '連携中';
+      calendarStatusText.style.color = '#10b981';
+    }
+    if (calendarAuthStatus) calendarAuthStatus.style.display = 'block';
+    if (calendarUserEmail) calendarUserEmail.textContent = calendarConfig.userEmail;
+    if (btnCalendarDisconnect) btnCalendarDisconnect.style.display = 'block';
+    if (btnCalendarConnect) btnCalendarConnect.textContent = '再接続する';
+  } else {
+    if (calendarStatusText) {
+      calendarStatusText.textContent = 'カレンダー連携';
+      calendarStatusText.style.color = 'var(--color-text-secondary)';
+    }
+    if (calendarAuthStatus) calendarAuthStatus.style.display = 'none';
+    if (calendarUserEmail) calendarUserEmail.textContent = '未接続';
+    if (btnCalendarDisconnect) btnCalendarDisconnect.style.display = 'none';
+    if (btnCalendarConnect) btnCalendarConnect.textContent = 'Googleアカウントと接続';
+  }
+}
+
+// Sync single task to Google Calendar
+async function syncTaskToGoogle(task) {
+  if (!calendarConfig.enabled || !gapiInitialized || !calendarConfig.accessToken) return;
+
+  const deadlineDate = new Date(task.deadline);
+  const endTimeISO = deadlineDate.toISOString();
+  const startTimeISO = new Date(deadlineDate.getTime() - 60 * 60 * 1000).toISOString();
+
+  const event = {
+    summary: `[RelaxDue] ${task.title}`,
+    description: `RelaxDue から自動同期された課題です。\n科目/タグ: ${task.subject}\n獲得くつろぎ時間: ＋${task.estimatedHours}時間\nアプリを開く: ${window.location.origin}`,
+    start: {
+      dateTime: startTimeISO,
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    },
+    end: {
+      dateTime: endTimeISO,
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    },
+    reminders: {
+      useDefault: false,
+      overrides: [
+        { method: 'popup', minutes: 60 },
+        { method: 'popup', minutes: 180 }
+      ]
+    }
+  };
+
+  try {
+    if (task.googleEventId) {
+      try {
+        await gapi.client.calendar.events.update({
+          calendarId: 'primary',
+          eventId: task.googleEventId,
+          resource: event
+        });
+        console.log('Google Calendar event updated:', task.googleEventId);
+      } catch (err) {
+        if (err.status === 404) {
+          const createResponse = await gapi.client.calendar.events.insert({
+            calendarId: 'primary',
+            resource: event
+          });
+          task.googleEventId = createResponse.result.id;
+          saveTasks();
+          console.log('Google Calendar event recreated:', task.googleEventId);
+        } else {
+          throw err;
+        }
+      }
+    } else {
+      const createResponse = await gapi.client.calendar.events.insert({
+        calendarId: 'primary',
+        resource: event
+      });
+      task.googleEventId = createResponse.result.id;
+      saveTasks();
+      console.log('Google Calendar event created:', task.googleEventId);
+    }
+  } catch (err) {
+    console.error('Error syncing event to Google Calendar:', err);
+  }
+}
+
+// Delete single task from Google Calendar
+async function deleteTaskFromGoogle(googleEventId) {
+  if (!calendarConfig.enabled || !gapiInitialized || !calendarConfig.accessToken || !googleEventId) return;
+
+  try {
+    await gapi.client.calendar.events.delete({
+      calendarId: 'primary',
+      eventId: googleEventId
+    });
+    console.log('Google Calendar event deleted:', googleEventId);
+  } catch (err) {
+    if (err.status !== 404) {
+      console.error('Error deleting event from Google Calendar:', err);
+    }
+  }
+}
+
+// Sync all unsynced tasks
+function syncAllTasksToGoogle() {
+  tasks.forEach(task => {
+    if (!task.googleEventId) {
+      syncTaskToGoogle(task);
+    }
+  });
+}
+
+// Edit Task Logic
+window.editTask = function(taskId) {
+  const task = tasks.find(t => t.id === taskId);
+  if (!task) return;
+
+  const editIdInput = document.getElementById('edit-task-id');
+  if (editIdInput) editIdInput.value = taskId;
+
+  taskTitleInput.value = task.title;
+  taskSubjectInput.value = task.subject;
+  
+  const deadlineDate = new Date(task.deadline);
+  deadlineDate.setMinutes(deadlineDate.getMinutes() - deadlineDate.getTimezoneOffset());
+  taskDeadlineInput.value = deadlineDate.toISOString().slice(0, 16);
+  
+  taskRelaxHoursInput.value = task.estimatedHours;
+  
+  if (taskAiSplitInput) {
+    taskAiSplitInput.checked = task.isAiSplit || false;
+  }
+
+  const formCard = document.querySelector('.form-card');
+  if (formCard) formCard.classList.add('editing-mode');
+  
+  const formTitle = document.getElementById('form-title');
+  if (formTitle) formTitle.textContent = '✏️ 課題を編集';
+  
+  const submitBtn = document.getElementById('btn-task-submit');
+  if (submitBtn) submitBtn.textContent = '変更を保存';
+
+  if (window.innerWidth <= 768) {
+    switchTab('add');
+  } else {
+    formCard.scrollIntoView({ behavior: 'smooth' });
+  }
+};
+
 
