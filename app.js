@@ -25,6 +25,15 @@ let googleTokenClient = null;
 let gapiInitialized = false;
 let gisInitialized = false;
 
+// Google Ambient Sound & Rocket Start State (v6)
+let audioCtx = null;
+let rainSource = null;
+let fireSource = null;
+let meditationOscillators = [];
+let ambientGainNode = null;
+let currentAmbientType = 'off';
+let activeRocketTaskId = null;
+
 // Added in v2: Timer State
 let timerInterval = null;
 let timerActive = false;
@@ -124,6 +133,39 @@ document.addEventListener('DOMContentLoaded', () => {
   if (calendarConfigForm) calendarConfigForm.addEventListener('submit', handleCalendarSave);
   if (btnCalendarConnect) btnCalendarConnect.addEventListener('click', handleCalendarConnect);
   if (btnCalendarDisconnect) btnCalendarDisconnect.addEventListener('click', handleCalendarDisconnect);
+
+  // Setup Ambient Sound Listeners (v6)
+  const ambientVolumeInput = document.getElementById('ambient-volume');
+  const immersiveVolumeInput = document.getElementById('immersive-volume');
+  const btnImmersiveStop = document.getElementById('btn-immersive-stop');
+  const ambientRadioButtons = document.querySelectorAll('input[name="ambient-sound"]');
+
+  if (ambientVolumeInput) {
+    ambientVolumeInput.addEventListener('input', (e) => {
+      const vol = parseFloat(e.target.value);
+      setAmbientVolume(vol);
+      if (immersiveVolumeInput) immersiveVolumeInput.value = vol;
+    });
+  }
+  if (immersiveVolumeInput) {
+    immersiveVolumeInput.addEventListener('input', (e) => {
+      const vol = parseFloat(e.target.value);
+      setAmbientVolume(vol);
+      if (ambientVolumeInput) ambientVolumeInput.value = vol;
+    });
+  }
+  if (btnImmersiveStop) {
+    btnImmersiveStop.addEventListener('click', () => {
+      stopTimer(false);
+    });
+  }
+  ambientRadioButtons.forEach(btn => {
+    btn.addEventListener('change', (e) => {
+      if (timerActive) {
+        startAmbientSound(e.target.value);
+      }
+    });
+  });
 
   // Monitor Supabase Auth state
   try {
@@ -344,7 +386,11 @@ async function handleFormSubmit(e) {
       subtasks: subtasks,
       isAiSplit: useAiSplit,
       expanded: false,
-      googleEventId: null
+      googleEventId: null,
+      rocketStartExpiry: Date.now() + 15 * 60 * 1000, // 15 minutes limit (v6)
+      rocketStarted: false,
+      rocketStartTime: 0,
+      rocketCompleted: false
     };
 
     tasks.push(newTask);
@@ -686,6 +732,8 @@ function renderTasks() {
               <span class="task-estimated">🎁 ＋${task.estimatedHours}時間くつろぎ</span>
               <span>📅 締切: ${deadlineFormatted}</span>
             </div>
+            <!-- Added in v6: Rocket Start UI -->
+            ${renderRocketStartUI(task)}
           </div>
         </div>
         <div class="task-item-actions" style="display: flex; align-items: center; gap: 0.25rem;">
@@ -754,6 +802,53 @@ function updateAllCountdowns() {
       gaugeBar.style.width = `${progress.percentage}%`;
       // Update background status gradient classes
       gaugeBar.className = `gauge-bar ${progress.bgClass}`;
+    }
+
+    // Added in v6: Update Rocket Start Countdowns
+    const btnRocket = taskElement.querySelector('.btn-rocket-start');
+    const badgeRocket = taskElement.querySelector('.rocket-start-badge');
+
+    if (task.rocketCompleted) {
+      if (btnRocket) btnRocket.style.display = 'none';
+      if (badgeRocket) {
+        badgeRocket.innerHTML = '🚀 1.5倍ボーナス獲得済！';
+        badgeRocket.className = 'rocket-start-badge';
+        badgeRocket.style.background = 'var(--gradient-safe)';
+        badgeRocket.style.animation = 'none';
+        badgeRocket.style.boxShadow = 'none';
+      }
+    } else if (task.rocketStarted) {
+      const elapsed = Date.now() - task.rocketStartTime;
+      const duration = 5 * 60 * 1000; // 5 minutes focus
+      const remaining = duration - elapsed;
+
+      if (remaining <= 0) {
+        completeRocketFocus(task.id);
+      } else {
+        const totalSec = Math.ceil(remaining / 1000);
+        const mins = Math.floor(totalSec / 60);
+        const secs = totalSec % 60;
+        const timeText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        if (btnRocket) {
+          btnRocket.textContent = `集中中... ${timeText}`;
+          btnRocket.disabled = false;
+        }
+      }
+    } else if (task.rocketStartExpiry) {
+      const remainingTime = task.rocketStartExpiry - Date.now();
+      if (remainingTime <= 0) {
+        if (btnRocket) btnRocket.style.display = 'none';
+        if (badgeRocket) badgeRocket.style.display = 'none';
+      } else {
+        const totalSec = Math.ceil(remainingTime / 1000);
+        const mins = Math.floor(totalSec / 60);
+        const secs = totalSec % 60;
+        const timeText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        if (badgeRocket) {
+          const countEl = badgeRocket.querySelector('.rocket-countdown');
+          if (countEl) countEl.textContent = timeText;
+        }
+      }
     }
   });
 }
@@ -1076,6 +1171,9 @@ function startTimer() {
 
   // 5. Start Interval
   startTimerInterval();
+
+  // Enter Immersive Mode (v6)
+  enterImmersiveMode(category);
 }
 
 function startTimerInterval() {
@@ -1096,7 +1194,14 @@ function updateTimerCountdown() {
   }
 
   const remainingSeconds = Math.ceil(remainingMs / 1000);
-  timerCountdown.textContent = formatTime(remainingSeconds);
+  const timeText = formatTime(remainingSeconds);
+  timerCountdown.textContent = timeText;
+
+  // Synchronize immersive timer (v6)
+  const immersiveTimerDisplay = document.getElementById('immersive-timer-display');
+  if (immersiveTimerDisplay) {
+    immersiveTimerDisplay.textContent = timeText;
+  }
 }
 
 function stopTimer(completedSuccessfully = false) {
@@ -1104,6 +1209,9 @@ function stopTimer(completedSuccessfully = false) {
     clearInterval(timerInterval);
     timerInterval = null;
   }
+
+  // Exit Immersive Mode (v6)
+  exitImmersiveMode();
 
   // Reset UI State
   document.body.classList.remove('relax-mode-active');
@@ -2238,5 +2346,342 @@ window.editTask = function(taskId) {
     formCard.scrollIntoView({ behavior: 'smooth' });
   }
 };
+
+/* ==========================================
+   Ambient Sound, Immersive Mode & Rocket Start Logic (v6)
+   ========================================== */
+
+// Rocket Start UI Renderer
+function renderRocketStartUI(task) {
+  if (task.rocketCompleted) {
+    return `
+      <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 8px;">
+        <span class="rocket-start-badge" style="background: var(--gradient-safe); animation: none; box-shadow: none;">🚀 1.5倍ボーナス獲得済！</span>
+      </div>
+    `;
+  } else if (task.rocketStarted) {
+    return `
+      <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 8px;">
+        <button class="btn-rocket-start active" onclick="event.stopPropagation();">集中中...</button>
+        <small style="color: var(--color-text-secondary); font-size: 0.75rem;">5分間集中を維持してください！</small>
+      </div>
+    `;
+  } else if (task.rocketStartExpiry && task.rocketStartExpiry > Date.now()) {
+    return `
+      <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+        <span class="rocket-start-badge">🚀 着手ボーナス！ <span class="rocket-countdown">--:--</span></span>
+        <button class="btn-rocket-start" onclick="event.stopPropagation(); startRocketFocus('${task.id}')" ${activeRocketTaskId ? 'disabled' : ''}>今すぐ5分着手</button>
+      </div>
+    `;
+  }
+  return '';
+}
+
+// Start Rocket Focus Mode (5 minutes)
+window.startRocketFocus = function(taskId) {
+  if (activeRocketTaskId) {
+    alert('現在、別の課題でロケットスタート集中モードが実行中です！');
+    return;
+  }
+
+  const task = tasks.find(t => t.id === taskId);
+  if (!task || task.rocketCompleted || task.rocketStarted) return;
+
+  task.rocketStarted = true;
+  task.rocketStartTime = Date.now();
+  activeRocketTaskId = taskId;
+
+  saveTasks();
+  renderTasks();
+  
+  // Disable other rocket buttons immediately
+  const allBtns = document.querySelectorAll('.btn-rocket-start');
+  allBtns.forEach(btn => {
+    const card = btn.closest('.task-item');
+    if (card && card.id !== `task-${taskId}`) {
+      btn.disabled = true;
+    }
+  });
+};
+
+// Complete Rocket Focus and apply 1.5x reward
+function completeRocketFocus(taskId) {
+  const task = tasks.find(t => t.id === taskId);
+  if (!task) return;
+
+  task.rocketStarted = false;
+  task.rocketCompleted = true;
+  activeRocketTaskId = null;
+
+  const originalReward = parseFloat(task.estimatedHours) || 0;
+  const newReward = Math.round(originalReward * 1.5 * 100) / 100;
+  task.estimatedHours = newReward;
+
+  if (task.subtasks && task.subtasks.length > 0) {
+    const rewardPerSubtask = newReward / task.subtasks.length;
+    task.subtasks.forEach(st => {
+      st.rewardHours = rewardPerSubtask;
+    });
+  }
+
+  addRelaxLog('charge', 0, `🚀 課題「${task.title}」の即時着手ボーナス(1.5倍)を獲得！`);
+  
+  triggerMiniConfetti();
+  playElegantChime();
+
+  saveTasks();
+  renderTasks();
+
+  if (calendarConfig.enabled && task.googleEventId) {
+    syncTaskToGoogle(task);
+  }
+
+  alert(`🚀 ロケットスタート成功！\n「${task.title}」のご褒美くつろぎ時間が1.5倍（${originalReward}時間 ➔ ${newReward}時間）になりました！`);
+}
+
+// Immersive Overlay Transitions
+function enterImmersiveMode(category) {
+  const immersiveOverlay = document.getElementById('immersive-overlay');
+  if (!immersiveOverlay) return;
+
+  const emojiEl = document.getElementById('immersive-emoji');
+  const titleEl = document.getElementById('immersive-title');
+  const subtitleEl = document.getElementById('immersive-subtitle');
+
+  let catEmoji = '🛋️';
+  let catTitle = '罪悪感ゼロでくつろぎ中...';
+  let catSub = '何にも追われない、あなただけの自由な時間です';
+
+  if (category === 'game') { catEmoji = '🎮'; catTitle = '全力でゲームプレイ中！'; catSub = '思う存分、ゲームの世界に没頭しましょう'; }
+  else if (category === 'video') { catEmoji = '📺'; catTitle = 'アニメ・動画を鑑賞中...'; catSub = 'ストーリーを心ゆくまでお楽しみください'; }
+  else if (category === 'sleep') { catEmoji = '🛌'; catTitle = '心安らぐ休息・睡眠時間'; catSub = '体と脳を完全にオフにして、ゆっくりお休みください'; }
+  else if (category === 'book') { catEmoji = '☕'; catTitle = '静かな読書・カフェタイム'; catSub = '温かい飲み物と一緒に、本の世界へ没頭します'; }
+  else if (category === 'sns') { catEmoji = '💬'; catTitle = 'SNS・友達との雑談タイム'; catSub = '気兼ねないコミュニケーションを楽しみましょう'; }
+
+  if (emojiEl) emojiEl.textContent = catEmoji;
+  if (titleEl) titleEl.textContent = catTitle;
+  if (subtitleEl) subtitleEl.textContent = catSub;
+
+  immersiveOverlay.style.display = 'flex';
+
+  const immersiveTimerDisplay = document.getElementById('immersive-timer-display');
+  if (immersiveTimerDisplay) {
+    immersiveTimerDisplay.textContent = formatTime(timerTotalSeconds);
+  }
+
+  const selectedAmbientEl = document.querySelector('input[name="ambient-sound"]:checked');
+  const ambientType = selectedAmbientEl ? selectedAmbientEl.value : 'off';
+  startAmbientSound(ambientType);
+}
+
+function exitImmersiveMode() {
+  const immersiveOverlay = document.getElementById('immersive-overlay');
+  if (immersiveOverlay) {
+    immersiveOverlay.style.display = 'none';
+  }
+  stopAmbientSound();
+}
+
+// Web Audio API Ambient Sound Synthesizer
+function getAudioContext() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  return audioCtx;
+}
+
+function startAmbientSound(type) {
+  stopAmbientSound();
+  currentAmbientType = type;
+  
+  if (type === 'off') return;
+  
+  const ctx = getAudioContext();
+  
+  ambientGainNode = ctx.createGain();
+  const volumeSlider = document.getElementById('ambient-volume');
+  const currentVol = volumeSlider ? parseFloat(volumeSlider.value) : 0.5;
+  ambientGainNode.gain.setValueAtTime(currentVol, ctx.currentTime);
+  ambientGainNode.connect(ctx.destination);
+  
+  if (type === 'rain') {
+    startRainSynthesis(ctx, ambientGainNode);
+  } else if (type === 'fire') {
+    startFireSynthesis(ctx, ambientGainNode);
+  } else if (type === 'meditation') {
+    startMeditationSynthesis(ctx, ambientGainNode);
+  }
+}
+
+function stopAmbientSound() {
+  currentAmbientType = 'off';
+  
+  if (ambientGainNode && audioCtx) {
+    try {
+      const activeGain = ambientGainNode;
+      const ctx = audioCtx;
+      activeGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+      setTimeout(() => {
+        try { activeGain.disconnect(); } catch(e){}
+      }, 900);
+    } catch (e) {}
+    ambientGainNode = null;
+  }
+  
+  if (rainSource) {
+    try { rainSource.stop(); } catch(e){}
+    rainSource = null;
+  }
+  
+  if (fireSource) {
+    try { fireSource.stop(); } catch(e){}
+    fireSource = null;
+  }
+  if (window.fireCracklerInterval) {
+    clearInterval(window.fireCracklerInterval);
+    window.fireCracklerInterval = null;
+  }
+  
+  if (meditationOscillators && meditationOscillators.length > 0) {
+    meditationOscillators.forEach(osc => {
+      try { osc.stop(); } catch(e){}
+    });
+    meditationOscillators = [];
+  }
+}
+
+function setAmbientVolume(vol) {
+  if (ambientGainNode && audioCtx) {
+    ambientGainNode.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.1);
+  }
+}
+
+function startRainSynthesis(ctx, outputNode) {
+  const bufferSize = ctx.sampleRate * 2;
+  const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const output = noiseBuffer.getChannelData(0);
+  
+  for (let i = 0; i < bufferSize; i++) {
+    output[i] = Math.random() * 2 - 1;
+  }
+  
+  rainSource = ctx.createBufferSource();
+  rainSource.buffer = noiseBuffer;
+  rainSource.loop = true;
+  
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(450, ctx.currentTime);
+  
+  const rainGain = ctx.createGain();
+  rainGain.gain.setValueAtTime(0.7, ctx.currentTime);
+  
+  rainSource.connect(filter);
+  filter.connect(rainGain);
+  rainGain.connect(outputNode);
+  
+  rainSource.start(0);
+  
+  let lastTime = ctx.currentTime;
+  const lfoTimer = setInterval(() => {
+    if (currentAmbientType !== 'rain' || !rainGain) {
+      clearInterval(lfoTimer);
+      return;
+    }
+    const t = ctx.currentTime;
+    const wave = 0.7 + Math.sin(t * 0.15) * 0.25;
+    rainGain.gain.linearRampToValueAtTime(wave, t + 0.8);
+  }, 1000);
+}
+
+function startFireSynthesis(ctx, outputNode) {
+  const bufferSize = ctx.sampleRate * 2;
+  const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const output = noiseBuffer.getChannelData(0);
+  
+  let lastOut = 0.0;
+  for (let i = 0; i < bufferSize; i++) {
+    const white = Math.random() * 2 - 1;
+    output[i] = (lastOut + (0.02 * white)) / 1.02;
+    lastOut = output[i];
+    output[i] *= 3.5;
+  }
+  
+  fireSource = ctx.createBufferSource();
+  fireSource.buffer = noiseBuffer;
+  fireSource.loop = true;
+  
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(120, ctx.currentTime);
+  
+  const rumbleGain = ctx.createGain();
+  rumbleGain.gain.setValueAtTime(0.8, ctx.currentTime);
+  
+  fireSource.connect(filter);
+  filter.connect(rumbleGain);
+  rumbleGain.connect(outputNode);
+  fireSource.start(0);
+  
+  window.fireCracklerInterval = setInterval(() => {
+    if (currentAmbientType !== 'fire' || !outputNode) {
+      clearInterval(window.fireCracklerInterval);
+      return;
+    }
+    if (Math.random() > 0.45) return;
+    
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(2000 + Math.random() * 3000, ctx.currentTime);
+    
+    gain.gain.setValueAtTime(0.06 + Math.random() * 0.08, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.01 + Math.random() * 0.02);
+    
+    osc.connect(gain);
+    gain.connect(outputNode);
+    
+    osc.start();
+    osc.stop(ctx.currentTime + 0.05);
+  }, 80);
+}
+
+function startMeditationSynthesis(ctx, outputNode) {
+  meditationOscillators = [];
+  const baseFreqs = [110.00, 164.81, 138.59];
+  
+  baseFreqs.forEach((freq, idx) => {
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    
+    const baseGain = 0.25;
+    gainNode.gain.setValueAtTime(baseGain, ctx.currentTime);
+    
+    osc.connect(gainNode);
+    gainNode.connect(outputNode);
+    
+    osc.start(0);
+    meditationOscillators.push(osc);
+    
+    const lfoTimer = setInterval(() => {
+      if (currentAmbientType !== 'meditation' || !gainNode) {
+        clearInterval(lfoTimer);
+        return;
+      }
+      const t = ctx.currentTime;
+      const lfoSpeed = 0.1 + (idx * 0.04);
+      const wave = baseGain + Math.sin(t * lfoSpeed) * 0.12;
+      gainNode.gain.linearRampToValueAtTime(wave, t + 1.2);
+    }, 1500);
+  });
+}
+
 
 

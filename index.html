@@ -155,6 +155,30 @@
               <label for="cat-sns" class="category-item-btn">💬 SNS/雑談</label>
             </div>
           </div>
+
+          <!-- Added in v6: Ambient Sound Selector -->
+          <div class="ambient-sound-section" style="margin: 0 0 1.25rem 0; text-align: left;">
+            <span style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 0.5rem;">🧘 背景アンビエント音（没頭用）:</span>
+            <div class="ambient-selector-grid">
+              <input type="radio" name="ambient-sound" id="amb-off" value="off" checked style="display: none;">
+              <label for="amb-off" class="ambient-item-btn">🔇 オフ</label>
+
+              <input type="radio" name="ambient-sound" id="amb-rain" value="rain" style="display: none;">
+              <label for="amb-rain" class="ambient-item-btn">🌧️ 雨の音</label>
+
+              <input type="radio" name="ambient-sound" id="amb-fire" value="fire" style="display: none;">
+              <label for="amb-fire" class="ambient-item-btn">🔥 焚き火</label>
+
+              <input type="radio" name="ambient-sound" id="amb-meditation" value="meditation" style="display: none;">
+              <label for="amb-meditation" class="ambient-item-btn">🧘 瞑想音</label>
+            </div>
+            <!-- Volume Slider -->
+            <div class="ambient-volume-container" style="margin-top: 0.75rem; display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 0.8rem; color: var(--color-text-secondary); line-height: 1;">🔈</span>
+              <input type="range" id="ambient-volume" min="0" max="1" step="0.05" value="0.5" style="flex: 1; height: 4px; border-radius: 2px; accent-color: var(--color-text-secondary); cursor: pointer;">
+              <span style="font-size: 0.8rem; color: var(--color-text-secondary); line-height: 1;">🔊</span>
+            </div>
+          </div>
           
           <!-- Control Buttons -->
           <div class="timer-controls">
@@ -318,6 +342,32 @@
           <button type="button" id="btn-calendar-disconnect" class="btn-preset" style="width: 100%; border-radius: 12px; padding: 0.8rem; border-color: rgba(239, 68, 68, 0.3); color: #ef4444; display: none;">連携を解除</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Immersive Relax Mode Overlay (v6) -->
+  <div id="immersive-overlay" class="immersive-overlay" style="display: none;">
+    <div class="immersive-bg">
+      <div class="immersive-wave wave1"></div>
+      <div class="immersive-wave wave2"></div>
+      <div class="immersive-wave wave3"></div>
+    </div>
+    <div class="immersive-content">
+      <div class="immersive-emoji" id="immersive-emoji">🛋️</div>
+      <h2 id="immersive-title">罪悪感ゼロでくつろぎ中...</h2>
+      <p id="immersive-subtitle">何にも追われない、あなただけの自由な時間です</p>
+      
+      <div class="immersive-timer" id="immersive-timer-display">00:00:00</div>
+      
+      <div class="immersive-controls">
+        <div style="display: flex; align-items: center; gap: 8px; width: 200px; margin: 0 auto 1.5rem auto;">
+          <span style="font-size: 0.9rem; color: rgba(255, 255, 255, 0.7); line-height: 1;">🔈</span>
+          <input type="range" id="immersive-volume" min="0" max="1" step="0.05" value="0.5" style="flex: 1; accent-color: #fff; cursor: pointer;">
+          <span style="font-size: 0.9rem; color: rgba(255, 255, 255, 0.7); line-height: 1;">🔊</span>
+        </div>
+        
+        <button type="button" class="btn-timer btn-timer-stop" id="btn-immersive-stop" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.4); color: white; box-shadow: none; max-width: 200px; margin: 0 auto;">くつろぎをやめる</button>
+      </div>
     </div>
   </div>
 </body>
